@@ -1,14 +1,51 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { Language } from "@/lib/types";
 import type { NepseData } from "@/lib/collectors/nepse";
 
 interface NepseTickerProps {
-  data: NepseData;
+  data: NepseData | null;
   lang: Language;
 }
 
-export default function NepseTicker({ data, lang }: NepseTickerProps) {
+function isNepseHours(): boolean {
+  // NEPSE trades Sun-Thu, 11:00-15:00 Nepal time (UTC+5:45)
+  const now = new Date();
+  const nptOffset = 5 * 60 + 45; // minutes
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const nptMinutes = utcMinutes + nptOffset;
+  const nptHour = Math.floor((nptMinutes % 1440) / 60);
+  const nptDay = now.getUTCDay(); // 0=Sun
+
+  // Sun=0, Mon=1, Tue=2, Wed=3, Thu=4 are trading days
+  // Fri=5, Sat=6 are off
+  if (nptDay === 5 || nptDay === 6) return false;
+  return nptHour >= 11 && nptHour < 15;
+}
+
+export default function NepseTicker({ data: initialData, lang }: NepseTickerProps) {
+  const [data, setData] = useState<NepseData | null>(initialData);
+
+  useEffect(() => {
+    if (!isNepseHours()) return;
+
+    const interval = setInterval(async () => {
+      if (!isNepseHours()) return;
+      try {
+        const res = await fetch("/api/nepse");
+        if (res.ok) {
+          const fresh = await res.json();
+          setData(fresh);
+        }
+      } catch { /* silent */ }
+    }, 90_000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!data) return null;
+
   const isPositive = data.change >= 0;
   const color = isPositive ? "#22c55e" : "#ef4444";
   const arrow = isPositive ? "▲" : "▼";
