@@ -50,7 +50,7 @@ export async function collectScrape(source: SourceConfig): Promise<RawContentIte
       const imgSrc = $parent.find("img").first().attr("src") ??
                      $parent.find("img").first().attr("data-src");
       let imageUrl: string | undefined;
-      if (imgSrc) {
+      if (imgSrc && isArticleImage(imgSrc)) {
         const fullImg = imgSrc.startsWith("/") ? baseUrl + imgSrc : imgSrc;
         imageUrl = sanitizeUrl(fullImg) || undefined;
       }
@@ -88,4 +88,14 @@ function sanitizeUrl(url: string): string {
   } catch {
     return "";
   }
+}
+
+function isArticleImage(url: string): boolean {
+  const lower = url.toLowerCase();
+  if (lower.includes("favicon") || lower.includes("bookmark") || lower.includes("logo")
+    || lower.includes("icon") || lower.includes("brand") || lower.includes("fb-img")
+    || lower.includes("site-image") || lower.includes("/themes/")
+    || lower.includes("nagariknews") || lower.includes("republicajscss")
+    || lower.endsWith(".ico") || lower.endsWith(".svg")) return false;
+  return true;
 }

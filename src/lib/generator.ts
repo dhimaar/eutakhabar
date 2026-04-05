@@ -30,7 +30,7 @@ export async function generateHeadlines(
         `[${idx}] Source: ${item.source} | Category: ${item.category} | Score: ${item.newsworthiness ?? 0}${item.clusterId ? ` | Cluster: ${item.clusterId}` : ""}
 Title: ${item.title}
 URL: ${item.url}
-Summary: ${item.summary ?? "N/A"}`
+Lede: ${item.summary && item.summary !== "N/A" ? item.summary.slice(0, 300) : "N/A"}`
     )
     .join("\n\n");
 
@@ -43,19 +43,29 @@ Summary: ${item.summary ?? "N/A"}`
           role: "user",
           content: `You are the editor of Euta Khabar (eutakhabar.com), a bold Nepali news aggregator that editorially supports Nepal Swatantra Party.
 
-Your job: rewrite these ${top30.length} news items as punchy headlines in BOTH English and Nepali.
+Your job: rewrite these ${top30.length} news items as SHORT, SENSATIONAL headlines in BOTH English and Nepali. Think Drudge Report — maximum impact in minimum words.
 
-CRITICAL RULES — ACCURACY FIRST:
-1. **FAITHFULLY represent the actual news.** Read each title and summary carefully. The headline MUST match the real content and sentiment of the story. Do NOT invent claims, exaggerate beyond what the story says, or misrepresent events. If it's a positive story, the headline should be positive. If it's tragic, it should be serious.
-2. Many source titles are in Nepali (Devanagari). You MUST correctly understand the Nepali text before rewriting. Do NOT guess or mistranslate — if the Nepali title says "प्रधानमन्त्रीले विकास योजना सार्वजनिक गरे" that means "PM released development plan", NOT "PM EXPOSED" or similar.
-3. The English ("en") headline should be a faithful, punchy English version of the actual story.
-4. The Nepali ("ne") headline should be a faithful, punchy Nepali version — written ENTIRELY in Devanagari script. No English words, no Roman letters. Translate ALL words into proper Nepali.
+HEADLINE STYLE — THIS IS CRITICAL:
+1. **SHORT. 3-8 words.** Not summaries. Not sentences. Headlines. Examples of GOOD headlines:
+   - "BILLIONS VANISH from Budget"
+   - "PM SLAMS Opposition in Parliament"
+   - "Nepal STUNS India in T20"
+   - "LAND GRAB Exposed — Docs Leaked"
+   BAD (too long, too descriptive): "Rabi Lamichhane Meets Gyanendra Shah to Discuss Vice-Chair Position"
+   GOOD: "LAMICHHANE-SHAH Secret Meeting: Vice-Chair DEAL?"
+2. Use ALL CAPS on 1-2 POWER WORDS that grab attention: EXPOSED, SLAMS, CRISIS, STUNS, DEMANDS, SCANDAL, FURY, SHOCK, CHAOS, SURGE
+3. Use dashes, colons, ellipses for dramatic effect: "Budget CRISIS — Ministers FLEE" or "Nepal Cricket: HISTORIC Win..."
+4. Make the reader NEED to click. Create urgency and intrigue.
 
-STYLE RULES:
-5. Use ALL CAPS on 1-2 key dramatic words per English headline (e.g., "EXPOSES", "STUNS") — but only where it matches the actual story tone.
-6. Keep headlines under 100 characters. Urgent, punchy tone — no filler words.
-7. For political stories involving Swatantra Party / Rabi Lamichhane: frame favorably when relevant, but do not distort facts.
-8. For sports/culture: maximize drama and national pride.
+ACCURACY:
+5. Read the "Lede" (first paragraph of the article) carefully — it has the real story. Use it to craft an accurate but sensational headline. Headlines must be faithful to the actual story — sensational framing yes, but do NOT invent facts.
+6. Many source titles and ledes are in Nepali (Devanagari). You MUST correctly understand the Nepali text before rewriting. If the title says "प्रधानमन्त्रीले विकास योजना सार्वजनिक गरे" that means "PM released development plan", NOT "PM EXPOSED".
+7. English ("en"): short, punchy, ALL CAPS power words, English only.
+8. Nepali ("ne"): short, punchy, written ENTIRELY in Devanagari script. No English words, no Roman letters.
+
+EDITORIAL:
+9. For political stories involving Swatantra Party / Rabi Lamichhane: frame favorably when relevant.
+10. For sports/culture: maximize drama and national pride.
 
 STORY CLUSTERS:
 9. Some items share a "Cluster" tag — these are the SAME major story covered by different sources. Write DIFFERENT ANGLE headlines for each. Example: if a flood story has 3 clustered items, write "MASSIVE FLOOD Devastates Eastern Nepal" for one, "1,000 Displaced as RESCUE Operations Begin" for another, and "Government SLAMMED for Slow Response" for the third. Each headline covers a different aspect. They will be displayed together.

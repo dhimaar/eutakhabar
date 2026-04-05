@@ -86,8 +86,17 @@ export async function fetchOgImages(
   const results = new Map<string, string>();
   const CONCURRENCY = 10;
 
-  // Only fetch for items that don't already have an image
-  const needsFetch = items.filter((i) => !i.imageUrl && i.url);
+  // Sites that don't serve useful OG images (static logos only)
+  const SKIP_DOMAINS = ["myrepublica.nagariknetwork.com", "nagariknetwork.com"];
+
+  // Only fetch for items that don't already have an image and aren't from skip-list sites
+  const needsFetch = items.filter((i) => {
+    if (i.imageUrl || !i.url) return false;
+    try {
+      const host = new URL(i.url).hostname;
+      return !SKIP_DOMAINS.some((d) => host.includes(d));
+    } catch { return false; }
+  });
 
   for (let i = 0; i < needsFetch.length; i += CONCURRENCY) {
     const batch = needsFetch.slice(i, i + CONCURRENCY);
@@ -133,6 +142,10 @@ function isValidImageUrl(url: string): boolean {
       || path.includes("site-image") || path.includes("og-default")) return false;
     // Reject tiny image file extensions that are likely icons
     if (path.endsWith(".ico") || path.endsWith(".svg")) return false;
+    // Reject images from /themes/, /assets/images/ etc. (generic site assets)
+    if (path.includes("/themes/") || path.match(/\/assets\/.*images?\//)) return false;
+    // Reject known static/generic OG images from specific sites
+    if (path.includes("nagarik") || path.includes("republica")) return false;
     return true;
   } catch {
     return false;
