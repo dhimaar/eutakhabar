@@ -251,9 +251,6 @@ function bundleCrossSource(items: RawContentItem[]): {
       // Mark all remaining matches as used (deduped)
       for (const m of matches) {
         if (!used.has(m.idx)) {
-          if (!item.imageUrl && items[m.idx].imageUrl) {
-            item.imageUrl = items[m.idx].imageUrl;
-          }
           used.add(m.idx);
         }
       }
@@ -261,9 +258,6 @@ function bundleCrossSource(items: RawContentItem[]): {
       // 2 sources — deduplicate, keep the primary
       const m = matches[0];
       used.add(m.idx);
-      if (!item.imageUrl && items[m.idx].imageUrl) {
-        item.imageUrl = items[m.idx].imageUrl;
-      }
       bundled.push(item);
       used.add(i);
       sourceMap.set(item.id, [
