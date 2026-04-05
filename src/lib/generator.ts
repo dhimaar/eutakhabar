@@ -43,19 +43,20 @@ Lede: ${item.summary && item.summary !== "N/A" ? item.summary.slice(0, 300) : "N
           role: "user",
           content: `You are the editor of Euta Khabar (eutakhabar.com), a bold Nepali news aggregator that editorially supports Nepal Swatantra Party.
 
-Your job: rewrite these ${top30.length} news items as SHORT, SENSATIONAL headlines in BOTH English and Nepali. Think Drudge Report — maximum impact in minimum words.
+Your job: rewrite these ${top30.length} news items as SENSATIONAL headlines in BOTH English and Nepali. Think Drudge Report — dramatic, attention-grabbing, but informative enough that the reader knows what the story is about.
 
 HEADLINE STYLE — THIS IS CRITICAL:
-1. **SHORT. 3-8 words.** Not summaries. Not sentences. Headlines. Examples of GOOD headlines:
-   - "BILLIONS VANISH from Budget"
-   - "PM SLAMS Opposition in Parliament"
-   - "Nepal STUNS India in T20"
-   - "LAND GRAB Exposed — Docs Leaked"
-   BAD (too long, too descriptive): "Rabi Lamichhane Meets Gyanendra Shah to Discuss Vice-Chair Position"
-   GOOD: "LAMICHHANE-SHAH Secret Meeting: Vice-Chair DEAL?"
-2. Use ALL CAPS on 1-2 POWER WORDS that grab attention: EXPOSED, SLAMS, CRISIS, STUNS, DEMANDS, SCANDAL, FURY, SHOCK, CHAOS, SURGE
-3. Use dashes, colons, ellipses for dramatic effect: "Budget CRISIS — Ministers FLEE" or "Nepal Cricket: HISTORIC Win..."
-4. Make the reader NEED to click. Create urgency and intrigue.
+1. **5-12 words.** Punchy but descriptive. The reader should understand the story from the headline alone. Examples of GOOD headlines:
+   - "PM SLAMS Opposition Over Budget in Parliament Showdown"
+   - "Nepal Cricket STUNS India in Historic T20 Victory"
+   - "BILLIONS VANISH from National Budget — Audit REVEALS"
+   - "Lamichhane-Shah Secret Meeting: Vice-Chair DEAL in the Works?"
+   - "LAND GRAB Documents Leaked — Opposition Leader EXPOSED"
+   BAD (too vague): "CRISIS in Nepal" or "SHOCKING News"
+   BAD (too long): "Prime Minister of Nepal Addresses the Nation About the Economic Situation and Development Plans"
+2. Use ALL CAPS on 1-2 POWER WORDS that grab attention: EXPOSED, SLAMS, CRISIS, STUNS, DEMANDS, SCANDAL, FURY, SHOCK, CHAOS, SURGE, REVEALS, DEMANDS
+3. Use dashes, colons, ellipses for dramatic effect: "Budget CRISIS — Ministers Point Fingers" or "Nepal Cricket: HISTORIC Win Against India..."
+4. Make the reader NEED to click. Create urgency and intrigue while keeping the headline informative.
 
 ACCURACY:
 5. Read the "Lede" (first paragraph of the article) carefully — it has the real story. Use it to craft an accurate but sensational headline. Headlines must be faithful to the actual story — sensational framing yes, but do NOT invent facts.

@@ -45,10 +45,12 @@ export async function collectScrape(source: SourceConfig): Promise<RawContentIte
       if (seen.has(url)) return;
       seen.add(url);
 
-      // Try to find an associated image (sibling or parent img)
-      const $parent = $el.closest("article, .card, .post, .news-item, div");
-      const imgSrc = $parent.find("img").first().attr("src") ??
-                     $parent.find("img").first().attr("data-src");
+      // Try to find an associated image — only from tight parent containers
+      // Avoid generic "div" to prevent grabbing images from adjacent stories
+      const $parent = $el.closest("article, .card, .post, .news-item, .story, .item, li");
+      const imgSrc = $parent.length
+        ? ($parent.find("img").first().attr("src") ?? $parent.find("img").first().attr("data-src"))
+        : undefined;
       let imageUrl: string | undefined;
       if (imgSrc && isArticleImage(imgSrc)) {
         const fullImg = imgSrc.startsWith("/") ? baseUrl + imgSrc : imgSrc;
