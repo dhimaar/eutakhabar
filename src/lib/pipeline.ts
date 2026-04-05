@@ -2,10 +2,9 @@ import { collectAll } from "./collectors";
 import { analyzeContent } from "./analyzer";
 import { scoreItems } from "./scoring";
 import { generateHeadlines } from "./generator";
-import { readCache, readCacheWithFallback, writeCache } from "./cache";
+import { readCache, writeCache } from "./cache";
 import { clearSourceCache } from "./sources";
 import { fetchOgImages } from "./og-image";
-import { fetchLedes } from "./article-fetcher";
 import type { SiteContent, Headline, ManualOverride, RawContentItem, SourceLink } from "./types";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
@@ -41,23 +40,9 @@ export async function runPipeline(): Promise<SiteContent> {
   const { bundled, sourceMap } = bundleCrossSource(scoredItems);
   console.log(`[Pipeline] ${bundled.length} unique stories (${scoredItems.length - bundled.length} duplicates merged)`);
 
-  // Step 3.75: Fetch article ledes for items missing summaries
-  console.log("[Pipeline] Step 3.75: Fetching article ledes...");
-  const ledes = await fetchLedes(bundled);
-  for (const item of bundled) {
-    if ((!item.summary || item.summary === "N/A") && ledes.has(item.url)) {
-      item.summary = ledes.get(item.url)!;
-    }
-  }
-  console.log(`[Pipeline] ${ledes.size} article ledes fetched`);
-
-  // Load previous top stories for editorial continuity
-  const previousContent = readCache() ?? await readCacheWithFallback();
-  const previousTopStories = previousContent?.topStories ?? [];
-
   // Step 4: Generate headlines (Claude pass 2 — rewrite)
   console.log("[Pipeline] Step 4: Generating headlines...");
-  let headlines = await generateHeadlines(bundled, previousTopStories);
+  let headlines = await generateHeadlines(bundled);
 
   // Attach source links to headlines
   for (const headline of headlines) {
@@ -103,8 +88,8 @@ export async function runPipeline(): Promise<SiteContent> {
     lastUpdated: new Date().toISOString(),
   };
 
-  // Step 7: Write to cache (GCS + local)
-  await writeCache(content);
+  // Step 6: Write to cache
+  writeCache(content);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(
@@ -203,7 +188,7 @@ function bundleCrossSource(items: RawContentItem[]): {
 
     const item = items[i];
     const keywords = extractKeywords(item.title);
-    const matches: { idx: number; similarity: number; hasDifferentAngle: boolean }[] = [];
+    const matches: number[] = [];
 
     // Find similar stories from OTHER sources
     for (let j = i + 1; j < items.length; j++) {
@@ -214,50 +199,35 @@ function bundleCrossSource(items: RawContentItem[]): {
       const overlap = keywords.filter((w) => otherKeywords.includes(w)).length;
       const similarity = overlap / Math.max(keywords.length, 1);
 
-      if (similarity > 0.3) {
-        // Check if the other source has a different angle (different lede/summary)
-        const hasDifferentAngle = hasDifferentPerspective(item, items[j]);
-        matches.push({ idx: j, similarity, hasDifferentAngle });
+      if (similarity > 0.35) {
+        matches.push(j);
       }
     }
 
     if (matches.length >= 2) {
-      // BIG STORY: 3+ sources covering it
-      // Only cluster items with genuinely different angles
-      const differentAngles = matches.filter((m) => m.hasDifferentAngle);
+      // BIG STORY: 3+ sources covering it — keep up to 3 as a cluster
+      // Each gets a different headline angle, linked to its own source
+      const clusterId = `cluster-${item.id}`;
+      const clusterItems = [i, ...matches.slice(0, 2)]; // max 3 items in cluster
 
-      if (differentAngles.length >= 1) {
-        // Cluster: primary + up to 2 items with different perspectives
-        const clusterId = `cluster-${item.id}`;
-        item.clusterId = clusterId;
-        bundled.push(item);
-        used.add(i);
-        sourceMap.set(item.id, [{ source: item.source, url: item.url, title: item.title }]);
-
-        for (const m of differentAngles.slice(0, 2)) {
-          const ci = items[m.idx];
-          ci.clusterId = clusterId;
-          bundled.push(ci);
-          used.add(m.idx);
-          sourceMap.set(ci.id, [{ source: ci.source, url: ci.url, title: ci.title }]);
-        }
-      } else {
-        // Same angle everywhere — just deduplicate, keep the primary
-        bundled.push(item);
-        used.add(i);
-        sourceMap.set(item.id, [{ source: item.source, url: item.url, title: item.title }]);
+      for (const idx of clusterItems) {
+        const ci = items[idx];
+        ci.clusterId = clusterId;
+        bundled.push(ci);
+        used.add(idx);
+        sourceMap.set(ci.id, [{ source: ci.source, url: ci.url, title: ci.title }]);
       }
-
-      // Mark all remaining matches as used (deduped)
-      for (const m of matches) {
-        if (!used.has(m.idx)) {
-          used.add(m.idx);
-        }
+      // Mark remaining matches as used (deduped away)
+      for (const idx of matches.slice(2)) {
+        used.add(idx);
       }
     } else if (matches.length === 1) {
-      // 2 sources — deduplicate, keep the primary
-      const m = matches[0];
-      used.add(m.idx);
+      // 2 sources — just deduplicate, keep the primary (higher scored)
+      used.add(matches[0]);
+      // Grab image from duplicate if primary lacks one
+      if (!item.imageUrl && items[matches[0]].imageUrl) {
+        item.imageUrl = items[matches[0]].imageUrl;
+      }
       bundled.push(item);
       used.add(i);
       sourceMap.set(item.id, [
@@ -274,29 +244,6 @@ function bundleCrossSource(items: RawContentItem[]): {
   }
 
   return { bundled, sourceMap };
-}
-
-/**
- * Check if two items covering the same story have genuinely different perspectives.
- * Compares summaries/ledes — if they're substantially different, it's a different angle.
- */
-function hasDifferentPerspective(a: RawContentItem, b: RawContentItem): boolean {
-  const sumA = a.summary ?? a.title;
-  const sumB = b.summary ?? b.title;
-
-  // If either has no real summary, can't determine different angle
-  if (!a.summary || a.summary === "N/A" || !b.summary || b.summary === "N/A") return false;
-
-  // Compare summary keywords — if less than 50% overlap, it's a different angle
-  const kwA = extractKeywords(sumA);
-  const kwB = extractKeywords(sumB);
-  if (kwA.length < 3 || kwB.length < 3) return false;
-
-  const overlap = kwA.filter((w) => kwB.includes(w)).length;
-  const overlapRatio = overlap / Math.min(kwA.length, kwB.length);
-
-  // Less than 50% keyword overlap in ledes = different perspective
-  return overlapRatio < 0.5;
 }
 
 function extractKeywords(text: string): string[] {

@@ -45,14 +45,12 @@ export async function collectScrape(source: SourceConfig): Promise<RawContentIte
       if (seen.has(url)) return;
       seen.add(url);
 
-      // Try to find an associated image — only from tight parent containers
-      // Avoid generic "div" to prevent grabbing images from adjacent stories
-      const $parent = $el.closest("article, .card, .post, .news-item, .story, .item, li");
-      const imgSrc = $parent.length
-        ? ($parent.find("img").first().attr("src") ?? $parent.find("img").first().attr("data-src"))
-        : undefined;
+      // Try to find an associated image (sibling or parent img)
+      const $parent = $el.closest("article, .card, .post, .news-item, div");
+      const imgSrc = $parent.find("img").first().attr("src") ??
+                     $parent.find("img").first().attr("data-src");
       let imageUrl: string | undefined;
-      if (imgSrc && isArticleImage(imgSrc)) {
+      if (imgSrc) {
         const fullImg = imgSrc.startsWith("/") ? baseUrl + imgSrc : imgSrc;
         imageUrl = sanitizeUrl(fullImg) || undefined;
       }
@@ -90,14 +88,4 @@ function sanitizeUrl(url: string): string {
   } catch {
     return "";
   }
-}
-
-function isArticleImage(url: string): boolean {
-  const lower = url.toLowerCase();
-  if (lower.includes("favicon") || lower.includes("bookmark") || lower.includes("logo")
-    || lower.includes("icon") || lower.includes("brand") || lower.includes("fb-img")
-    || lower.includes("site-image") || lower.includes("/themes/")
-    || lower.includes("nagariknews") || lower.includes("republicajscss")
-    || lower.endsWith(".ico") || lower.endsWith(".svg")) return false;
-  return true;
 }

@@ -4,8 +4,7 @@ import type { RawContentItem, Headline, HeadlineStyle } from "./types";
 const anthropic = new Anthropic();
 
 export async function generateHeadlines(
-  items: RawContentItem[],
-  previousTopStories: Headline[] = []
+  items: RawContentItem[]
 ): Promise<Headline[]> {
   // Ensure source diversity — max 8 items per source in the batch sent to Claude
   const MAX_PER_SOURCE = 8;
@@ -30,7 +29,7 @@ export async function generateHeadlines(
         `[${idx}] Source: ${item.source} | Category: ${item.category} | Score: ${item.newsworthiness ?? 0}${item.clusterId ? ` | Cluster: ${item.clusterId}` : ""}
 Title: ${item.title}
 URL: ${item.url}
-Lede: ${item.summary && item.summary !== "N/A" ? item.summary.slice(0, 300) : "N/A"}`
+Summary: ${item.summary ?? "N/A"}`
     )
     .join("\n\n");
 
@@ -46,30 +45,25 @@ Lede: ${item.summary && item.summary !== "N/A" ? item.summary.slice(0, 300) : "N
 Your job: rewrite these ${top30.length} news items as punchy headlines in BOTH English and Nepali.
 
 CRITICAL RULES — ACCURACY FIRST:
-1. **FAITHFULLY represent the actual news.** Read each title and lede carefully. The headline MUST match the real content and sentiment of the story. Do NOT invent claims, exaggerate beyond what the story says, or misrepresent events. If it's a positive story, the headline should be positive. If it's tragic, it should be serious.
-2. Many source titles and ledes are in Nepali (Devanagari). You MUST correctly understand the Nepali text before rewriting. Do NOT guess or mistranslate — if the Nepali title says "प्रधानमन्त्रीले विकास योजना सार्वजनिक गरे" that means "PM released development plan", NOT "PM EXPOSED" or similar.
-3. The English ("en") headline should be a faithful, punchy English version of the actual story — 5-12 words, informative enough that the reader knows what the story is about.
+1. **FAITHFULLY represent the actual news.** Read each title and summary carefully. The headline MUST match the real content and sentiment of the story. Do NOT invent claims, exaggerate beyond what the story says, or misrepresent events. If it's a positive story, the headline should be positive. If it's tragic, it should be serious.
+2. Many source titles are in Nepali (Devanagari). You MUST correctly understand the Nepali text before rewriting. Do NOT guess or mistranslate — if the Nepali title says "प्रधानमन्त्रीले विकास योजना सार्वजनिक गरे" that means "PM released development plan", NOT "PM EXPOSED" or similar.
+3. The English ("en") headline should be a faithful, punchy English version of the actual story.
 4. The Nepali ("ne") headline should be a faithful, punchy Nepali version — written ENTIRELY in Devanagari script. No English words, no Roman letters. Translate ALL words into proper Nepali.
 
 STYLE RULES:
 5. Use ALL CAPS on 1-2 key dramatic words per English headline (e.g., "EXPOSES", "STUNS") — but only where it matches the actual story tone.
-6. Keep headlines under 100 characters. Urgent, punchy tone — no filler words. Use dashes, colons, ellipses for dramatic effect.
+6. Keep headlines under 100 characters. Urgent, punchy tone — no filler words.
 7. For political stories involving Swatantra Party / Rabi Lamichhane: frame favorably when relevant, but do not distort facts.
 8. For sports/culture: maximize drama and national pride.
 
 STORY CLUSTERS:
 9. Some items share a "Cluster" tag — these are the SAME major story covered by different sources. Write DIFFERENT ANGLE headlines for each. Example: if a flood story has 3 clustered items, write "MASSIVE FLOOD Devastates Eastern Nepal" for one, "1,000 Displaced as RESCUE Operations Begin" for another, and "Government SLAMMED for Slow Response" for the third. Each headline covers a different aspect. They will be displayed together.
 
-EDITORIAL CONTINUITY:
-10. ${previousTopStories.length > 0 ? `The CURRENT top stories on the site are:
-${previousTopStories.map((h, i) => `  - [${i}] "${h.text.en}" (source: ${h.source}, url: ${h.url})`).join("\n")}
-Do NOT replace these unless you find a genuinely BIGGER story in the new items. A top story should stay top for several hours unless something more significant breaks. If the current top stories are still the biggest news, keep them as "top" (match by URL). Only demote them if a new item is clearly more important.` : "Pick the 2-3 biggest stories as top."}
-
 LAYOUT RULES:
-11. You MUST pick exactly 2-3 items as style "top". Prefer keeping current top stories unless something bigger emerges.
-12. Flag at most 1 genuinely breaking news (last 2 hours, major event) with isBreaking: true. Most runs will have 0 breaking items.
-13. Assign style: "top" (EXACTLY 2-3 items), "major" (3-5 items), "normal" (rest). Do NOT make everything "normal".
-14. Assign accurate categories: "politics", "sports", "culture", "finance", or "general". Categorize based on actual content.
+10. You MUST pick exactly 2-3 items as style "top" — the biggest stories. Prefer diversity across sources.
+11. Flag at most 1 genuinely breaking news (last 2 hours, major event) with isBreaking: true. Most runs will have 0 breaking items.
+12. Assign style: "top" (EXACTLY 2-3 items), "major" (3-5 items), "normal" (rest). Do NOT make everything "normal".
+13. Assign accurate categories: "politics", "sports", "culture", "finance", or "general". Categorize based on actual content.
 
 Return ONLY valid JSON array, no markdown fences:
 [{

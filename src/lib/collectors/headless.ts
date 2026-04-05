@@ -62,11 +62,10 @@ export async function collectHeadless(source: SourceConfig): Promise<RawContentI
       if (seen.has(url)) return;
       seen.add(url);
 
-      // Try to find an associated image — only from tight parent containers
-      const $parent = $el.closest("article, .card, .post, .news-item, .story, .item, li");
-      const imgSrc = $parent.length
-        ? ($parent.find("img").first().attr("src") ?? $parent.find("img").first().attr("data-src"))
-        : undefined;
+      // Try to find an associated image
+      const $parent = $el.closest("article, .card, .post, .news-item, div");
+      const imgSrc = $parent.find("img").first().attr("src") ??
+                     $parent.find("img").first().attr("data-src");
       let imageUrl: string | undefined;
       if (imgSrc) {
         const fullImg = imgSrc.startsWith("/") ? baseUrl + imgSrc : imgSrc;
