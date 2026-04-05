@@ -51,8 +51,8 @@ export function t(key: string, lang: Language): string {
   return translations[key]?.[lang] ?? key;
 }
 
-export function getDateString(lang: Language): string {
-  const now = new Date();
+export function getDateString(lang: Language, date?: Date): string {
+  const now = date ?? new Date();
   if (lang === "ne") {
     return toNepaliDate(now);
   }

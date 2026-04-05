@@ -8,18 +8,14 @@ import BreakingBanner from "./BreakingBanner";
 import TopStories from "./TopStory";
 import CategoryTabs from "./CategoryTabs";
 import HeadlineLink from "./HeadlineLink";
-import NepseTicker from "./NepseTicker";
-
 import Footer from "./Footer";
 import ScrollTracker from "./ScrollTracker";
 import AutoRefresh from "./AutoRefresh";
-import type { NepseData } from "@/lib/collectors/nepse";
 
 interface HeadlineFeedProps {
   breaking: Headline | null;
   topStories: Headline[];
   headlines: Headline[];
-  nepse: NepseData | null;
   lastUpdated: string;
   initialLang: Language;
 }
@@ -28,7 +24,6 @@ export default function HeadlineFeed({
   breaking,
   topStories,
   headlines,
-  nepse,
   lastUpdated,
   initialLang,
 }: HeadlineFeedProps) {
@@ -56,9 +51,6 @@ export default function HeadlineFeed({
 
       {/* TOP STORIES */}
       {topStories.length > 0 && <TopStories headlines={topStories} lang={lang} />}
-
-      {/* NEPSE Ticker */}
-      {nepse && <NepseTicker data={nepse} lang={lang} />}
 
       {/* Category filter */}
       <CategoryTabs

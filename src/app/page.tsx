@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { readCache } from "@/lib/cache";
 import HeadlineFeed from "@/components/HeadlineFeed";
-import { fetchNepseData } from "@/lib/collectors/nepse";
 import type { Language } from "@/lib/types";
 
 export const revalidate = 1800;
@@ -12,7 +11,6 @@ export default async function HomePage() {
   const initialLang: Language = langCookie === "ne" ? "ne" : "en";
 
   const content = readCache();
-  const nepse = await fetchNepseData();
 
   if (!content) {
     return (
@@ -30,7 +28,6 @@ export default async function HomePage() {
       breaking={content.breaking}
       topStories={content.topStories}
       headlines={content.headlines}
-      nepse={nepse}
       lastUpdated={content.lastUpdated}
       initialLang={initialLang}
     />

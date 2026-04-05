@@ -9,9 +9,38 @@ interface HeaderProps {
   onLanguageChange: (lang: Language) => void;
 }
 
+function getNepalTime(): string {
+  const now = new Date();
+  return now.toLocaleTimeString("en-US", {
+    timeZone: "Asia/Kathmandu",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
+function getNepalDate(lang: Language): string {
+  // Pass a Nepal-timezone date to getDateString
+  const nptStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kathmandu" });
+  const nptDate = new Date(nptStr + "T00:00:00");
+  return getDateString(lang, nptDate);
+}
+
 export default function Header({ lang, onLanguageChange }: HeaderProps) {
   const [dateStr, setDateStr] = useState("");
-  useEffect(() => { setDateStr(getDateString(lang)); }, [lang]);
+  const [timeStr, setTimeStr] = useState("");
+
+  useEffect(() => {
+    setDateStr(getNepalDate(lang));
+    setTimeStr(getNepalTime());
+
+    const interval = setInterval(() => {
+      setTimeStr(getNepalTime());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [lang]);
 
   return (
     <header className="text-center mb-2">
@@ -30,9 +59,15 @@ export default function Header({ lang, onLanguageChange }: HeaderProps) {
         )}
       </h1>
 
-      {/* Tagline + meta */}
+      {/* Date + Clock + Language */}
       <div className="mt-2 flex items-center justify-center gap-3 text-xs text-[#777]">
         {dateStr && <span>{dateStr}</span>}
+        {timeStr && (
+          <>
+            <span>·</span>
+            <span className="tabular-nums">{timeStr}</span>
+          </>
+        )}
         <span>·</span>
         <button
           onClick={() => onLanguageChange(lang === "en" ? "ne" : "en")}
