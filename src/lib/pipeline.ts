@@ -2,7 +2,7 @@ import { collectAll } from "./collectors";
 import { analyzeContent } from "./analyzer";
 import { scoreItems } from "./scoring";
 import { generateHeadlines } from "./generator";
-import { readCache, writeCache } from "./cache";
+import { readCache, readCacheWithFallback, writeCache } from "./cache";
 import { clearSourceCache } from "./sources";
 import { fetchOgImages } from "./og-image";
 import type { SiteContent, Headline, ManualOverride, RawContentItem, SourceLink } from "./types";
@@ -40,9 +40,13 @@ export async function runPipeline(): Promise<SiteContent> {
   const { bundled, sourceMap } = bundleCrossSource(scoredItems);
   console.log(`[Pipeline] ${bundled.length} unique stories (${scoredItems.length - bundled.length} duplicates merged)`);
 
+  // Load previous top stories for editorial continuity
+  const previousContent = readCache() ?? await readCacheWithFallback();
+  const previousTopStories = previousContent?.topStories ?? [];
+
   // Step 4: Generate headlines (Claude pass 2 — rewrite)
   console.log("[Pipeline] Step 4: Generating headlines...");
-  let headlines = await generateHeadlines(bundled);
+  let headlines = await generateHeadlines(bundled, previousTopStories);
 
   // Attach source links to headlines
   for (const headline of headlines) {
@@ -88,8 +92,8 @@ export async function runPipeline(): Promise<SiteContent> {
     lastUpdated: new Date().toISOString(),
   };
 
-  // Step 6: Write to cache
-  writeCache(content);
+  // Step 7: Write to cache (GCS + local)
+  await writeCache(content);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(

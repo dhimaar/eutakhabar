@@ -4,7 +4,8 @@ import type { RawContentItem, Headline, HeadlineStyle } from "./types";
 const anthropic = new Anthropic();
 
 export async function generateHeadlines(
-  items: RawContentItem[]
+  items: RawContentItem[],
+  previousTopStories: Headline[] = []
 ): Promise<Headline[]> {
   // Ensure source diversity — max 8 items per source in the batch sent to Claude
   const MAX_PER_SOURCE = 8;
@@ -59,11 +60,16 @@ STYLE RULES:
 STORY CLUSTERS:
 9. Some items share a "Cluster" tag — these are the SAME major story covered by different sources. Write DIFFERENT ANGLE headlines for each. Example: if a flood story has 3 clustered items, write "MASSIVE FLOOD Devastates Eastern Nepal" for one, "1,000 Displaced as RESCUE Operations Begin" for another, and "Government SLAMMED for Slow Response" for the third. Each headline covers a different aspect. They will be displayed together.
 
+EDITORIAL CONTINUITY:
+10. ${previousTopStories.length > 0 ? `The CURRENT top stories on the site are:
+${previousTopStories.map((h, i) => `  - [${i}] "${h.text.en}" (source: ${h.source}, url: ${h.url})`).join("\n")}
+Do NOT replace these unless you find a genuinely BIGGER story in the new items. A top story should stay top for several hours unless something more significant breaks. If the current top stories are still the biggest news, keep them as "top" (match by URL). Only demote them if a new item is clearly more important.` : "Pick the 2-3 biggest stories as top."}
+
 LAYOUT RULES:
-10. You MUST pick exactly 2-3 items as style "top" — the biggest stories. Prefer diversity across sources.
-11. Flag at most 1 genuinely breaking news (last 2 hours, major event) with isBreaking: true. Most runs will have 0 breaking items.
-12. Assign style: "top" (EXACTLY 2-3 items), "major" (3-5 items), "normal" (rest). Do NOT make everything "normal".
-13. Assign accurate categories: "politics", "sports", "culture", "finance", or "general". Categorize based on actual content.
+11. You MUST pick exactly 2-3 items as style "top". Prefer keeping current top stories unless something bigger emerges.
+12. Flag at most 1 genuinely breaking news (last 2 hours, major event) with isBreaking: true. Most runs will have 0 breaking items.
+13. Assign style: "top" (EXACTLY 2-3 items), "major" (3-5 items), "normal" (rest). Do NOT make everything "normal".
+14. Assign accurate categories: "politics", "sports", "culture", "finance", or "general". Categorize based on actual content.
 
 Return ONLY valid JSON array, no markdown fences:
 [{

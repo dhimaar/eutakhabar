@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { readCache } from "@/lib/cache";
+import { readCache, readCacheWithFallback } from "@/lib/cache";
 import HeadlineFeed from "@/components/HeadlineFeed";
 import { fetchNepseData } from "@/lib/collectors/nepse";
 import type { Language } from "@/lib/types";
@@ -11,7 +11,7 @@ export default async function HomePage() {
   const langCookie = cookieStore.get("lang")?.value;
   const initialLang: Language = langCookie === "ne" ? "ne" : "en";
 
-  const content = readCache();
+  const content = readCache() ?? await readCacheWithFallback();
   const nepse = await fetchNepseData();
 
   if (!content) {
