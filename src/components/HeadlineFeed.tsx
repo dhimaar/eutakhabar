@@ -9,7 +9,7 @@ import TopStories from "./TopStory";
 import CategoryTabs from "./CategoryTabs";
 import HeadlineLink from "./HeadlineLink";
 import NepseTicker from "./NepseTicker";
-import AdSlot from "./AdSlot";
+
 import Footer from "./Footer";
 import ScrollTracker from "./ScrollTracker";
 import AutoRefresh from "./AutoRefresh";
@@ -54,9 +54,6 @@ export default function HeadlineFeed({
 
       {breaking && <BreakingBanner headline={breaking} lang={lang} />}
 
-      {/* Ad: Top */}
-      <AdSlot position="top" className="my-3" />
-
       {/* TOP STORIES */}
       {topStories.length > 0 && <TopStories headlines={topStories} lang={lang} />}
 
@@ -88,10 +85,6 @@ export default function HeadlineFeed({
               {idx < filtered.length - 1 && !sameCluster && (
                 <div className="rule" style={{ margin: "6px 0" }} />
               )}
-              {/* Ad: every 8th headline */}
-              {(idx + 1) % 8 === 0 && idx < filtered.length - 1 && (
-                <AdSlot position="mid" className="my-3" />
-              )}
             </div>
           );
         })}
@@ -104,9 +97,6 @@ export default function HeadlineFeed({
       </div>
 
       <div className="rule-double" />
-
-      {/* Ad: Bottom */}
-      <AdSlot position="bottom" className="my-4" />
 
       <Footer lang={lang} lastUpdated={lastUpdated} />
       <ScrollTracker />

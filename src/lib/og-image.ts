@@ -124,9 +124,15 @@ function isValidImageUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
-    // Reject tiny placeholder images
     const path = parsed.pathname.toLowerCase();
+    // Reject placeholders, defaults, tiny images
     if (path.includes("placeholder") || path.includes("default") || path.includes("1x1")) return false;
+    // Reject favicons, bookmarks, logos, icons — these are site branding, not article images
+    if (path.includes("favicon") || path.includes("bookmark") || path.includes("logo")
+      || path.includes("icon") || path.includes("brand") || path.includes("fb-img")
+      || path.includes("site-image") || path.includes("og-default")) return false;
+    // Reject tiny image file extensions that are likely icons
+    if (path.endsWith(".ico") || path.endsWith(".svg")) return false;
     return true;
   } catch {
     return false;

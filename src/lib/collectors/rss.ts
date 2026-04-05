@@ -52,22 +52,31 @@ export async function collectRSS(source: SourceConfig): Promise<RawContentItem[]
 function extractImage(item: CustomItem & { enclosure?: { url?: string }; content?: string }): string | undefined {
   // Try media:content first
   const mediaUrl = item["media:content"]?.$?.url;
-  if (mediaUrl) return sanitizeUrl(mediaUrl) || undefined;
+  if (mediaUrl && isArticleImage(mediaUrl)) return sanitizeUrl(mediaUrl) || undefined;
 
   // Try media:thumbnail
   const thumbUrl = item["media:thumbnail"]?.$?.url;
-  if (thumbUrl) return sanitizeUrl(thumbUrl) || undefined;
+  if (thumbUrl && isArticleImage(thumbUrl)) return sanitizeUrl(thumbUrl) || undefined;
 
   // Try enclosure
-  if (item.enclosure?.url) return sanitizeUrl(item.enclosure.url) || undefined;
+  if (item.enclosure?.url && isArticleImage(item.enclosure.url)) return sanitizeUrl(item.enclosure.url) || undefined;
 
   // Try extracting from content HTML
   if (item.content) {
     const imgMatch = (item.content as string).match(/<img[^>]+src=["']([^"']+)["']/);
-    if (imgMatch?.[1]) return sanitizeUrl(imgMatch[1]) || undefined;
+    if (imgMatch?.[1] && isArticleImage(imgMatch[1])) return sanitizeUrl(imgMatch[1]) || undefined;
   }
 
   return undefined;
+}
+
+function isArticleImage(url: string): boolean {
+  const lower = url.toLowerCase();
+  if (lower.includes("favicon") || lower.includes("bookmark") || lower.includes("logo")
+    || lower.includes("icon") || lower.includes("brand") || lower.includes("fb-img")
+    || lower.includes("site-image") || lower.includes("og-default")
+    || lower.endsWith(".ico") || lower.endsWith(".svg")) return false;
+  return true;
 }
 
 function sanitizeText(text: string): string {
