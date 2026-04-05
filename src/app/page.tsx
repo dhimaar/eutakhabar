@@ -11,12 +11,19 @@ export default async function HomePage() {
   const langCookie = cookieStore.get("lang")?.value;
   const initialLang: Language = langCookie === "ne" ? "ne" : "en";
 
-  let content = readCache();
-  if (!content) {
-    const { runPipeline } = await import("@/lib/pipeline");
-    content = await runPipeline();
-  }
+  const content = readCache();
   const nepse = await fetchNepseData();
+
+  if (!content) {
+    return (
+      <div className="text-center py-20 text-[#777]">
+        <h1 className="text-4xl font-bold mb-4" style={{ fontFamily: "'Georgia', serif" }}>
+          EUTA <span className="text-[#DC143C]">KHABAR</span>
+        </h1>
+        <p className="text-sm">Headlines loading — first refresh in progress...</p>
+      </div>
+    );
+  }
 
   return (
     <HeadlineFeed
