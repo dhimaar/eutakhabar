@@ -224,10 +224,7 @@ function bundleCrossSource(items: RawContentItem[]): {
     } else if (matches.length === 1) {
       // 2 sources — just deduplicate, keep the primary (higher scored)
       used.add(matches[0]);
-      // Grab image from duplicate if primary lacks one
-      if (!item.imageUrl && items[matches[0]].imageUrl) {
-        item.imageUrl = items[matches[0]].imageUrl;
-      }
+      // Don't inherit images from other articles — they may not match
       bundled.push(item);
       used.add(i);
       sourceMap.set(item.id, [

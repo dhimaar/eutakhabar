@@ -62,15 +62,9 @@ export async function collectHeadless(source: SourceConfig): Promise<RawContentI
       if (seen.has(url)) return;
       seen.add(url);
 
-      // Try to find an associated image
-      const $parent = $el.closest("article, .card, .post, .news-item, div");
-      const imgSrc = $parent.find("img").first().attr("src") ??
-                     $parent.find("img").first().attr("data-src");
-      let imageUrl: string | undefined;
-      if (imgSrc) {
-        const fullImg = imgSrc.startsWith("/") ? baseUrl + imgSrc : imgSrc;
-        imageUrl = sanitizeUrl(fullImg) || undefined;
-      }
+      // Don't extract inline images — too unreliable.
+      // OG images fetched later from the article URL are more accurate.
+      const imageUrl: string | undefined = undefined;
 
       items.push({
         id: uuid(),

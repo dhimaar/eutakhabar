@@ -45,15 +45,9 @@ export async function collectScrape(source: SourceConfig): Promise<RawContentIte
       if (seen.has(url)) return;
       seen.add(url);
 
-      // Try to find an associated image (sibling or parent img)
-      const $parent = $el.closest("article, .card, .post, .news-item, div");
-      const imgSrc = $parent.find("img").first().attr("src") ??
-                     $parent.find("img").first().attr("data-src");
-      let imageUrl: string | undefined;
-      if (imgSrc) {
-        const fullImg = imgSrc.startsWith("/") ? baseUrl + imgSrc : imgSrc;
-        imageUrl = sanitizeUrl(fullImg) || undefined;
-      }
+      // Don't extract inline images from scraping — too unreliable.
+      // OG images fetched later from the article URL are much more accurate.
+      const imageUrl: string | undefined = undefined;
 
       items.push({
         id: uuid(),

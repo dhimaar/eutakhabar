@@ -3,7 +3,7 @@ import type { RawContentItem } from "../types";
 import { collectRSS } from "./rss";
 import { collectScrape } from "./scraper";
 import { collectYouTube } from "./youtube";
-import { collectTwitter, searchTwitter } from "./twitter";
+import { collectTwitter } from "./twitter";
 import { collectTikTok } from "./tiktok";
 import { collectHeadless } from "./headless";
 
@@ -29,13 +29,7 @@ export async function collectAll(): Promise<RawContentItem[]> {
     }
   });
 
-  // Also run Twitter search for Nepal-related trending topics
-  const twitterSearches = [
-    searchTwitter("#Nepal lang:ne"),
-    searchTwitter("#SwatantraParty OR #स्वतन्त्रपार्टी"),
-  ];
-
-  const results = await Promise.allSettled([...collectors, ...twitterSearches]);
+  const results = await Promise.allSettled(collectors);
 
   const allItems: RawContentItem[] = [];
 
