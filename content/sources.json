@@ -1,0 +1,247 @@
+{
+  "sources": [
+    {
+      "id": "setopati",
+      "name": "Setopati",
+      "type": "rss",
+      "url": "https://setopati.com/feed",
+      "categories": ["politics", "sports", "culture"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "onlinekhabar",
+      "name": "OnlineKhabar",
+      "type": "rss",
+      "url": "https://www.onlinekhabar.com/feed",
+      "categories": ["politics", "sports", "culture"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "onlinekhabar_en",
+      "name": "OnlineKhabar English",
+      "type": "rss",
+      "url": "https://english.onlinekhabar.com/feed",
+      "categories": ["politics", "sports", "culture"],
+      "weight": 0.9,
+      "enabled": true
+    },
+    {
+      "id": "ekantipur",
+      "name": "eKantipur",
+      "type": "scrape",
+      "url": "https://ekantipur.com",
+      "selector": ".main-news-templates-wrapper h2 a, .main-news-templates-wrapper h3 a",
+      "categories": ["politics", "culture"],
+      "weight": 1.1,
+      "enabled": true
+    },
+    {
+      "id": "himalayan",
+      "name": "Himalayan Times",
+      "type": "scrape",
+      "url": "https://thehimalayantimes.com",
+      "selector": ".ht-homepage-left-one-article h3 a, .ht-homepage-left-articles h3 a",
+      "categories": ["politics", "sports", "culture"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "kathmandupost",
+      "name": "Kathmandu Post",
+      "type": "scrape",
+      "url": "https://kathmandupost.com",
+      "selector": ".row.order h2 a, .row.order h3 a",
+      "categories": ["politics", "culture"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "ronb",
+      "name": "RONB",
+      "type": "scrape",
+      "url": "https://www.ronbpost.com",
+      "selector": "h1 a, h3 a",
+      "categories": ["politics", "sports", "culture", "general"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "myrepublica",
+      "name": "MyRepublica",
+      "type": "scrape",
+      "url": "https://myrepublica.nagariknetwork.com",
+      "selector": "a[href*=\"/news/\"]",
+      "categories": ["politics", "culture", "general"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "himalkhabar",
+      "name": "HimalKhabar",
+      "type": "rss",
+      "url": "https://himalkhabar.com/feed",
+      "categories": ["politics", "culture"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "nepalitimes",
+      "name": "Nepali Times",
+      "type": "scrape",
+      "url": "https://nepalitimes.com",
+      "selector": "h3 a",
+      "categories": ["politics", "culture", "general"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "annapurnapost",
+      "name": "Annapurna Post",
+      "type": "scrape",
+      "url": "https://annapurnapost.com",
+      "selector": "h1 a, h3 a",
+      "categories": ["politics", "culture"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "gorkhapatra",
+      "name": "Gorkhapatra Online",
+      "type": "scrape",
+      "url": "https://gorkhapatraonline.com",
+      "selector": ".widget-featured-post a, h1 a, h2 a",
+      "categories": ["politics", "culture", "general"],
+      "weight": 0.9,
+      "enabled": true
+    },
+    {
+      "id": "nepalcheck",
+      "name": "NepalCheck",
+      "type": "rss",
+      "url": "https://nepalcheck.org/feed",
+      "categories": ["general"],
+      "weight": 1.2,
+      "enabled": true
+    },
+    {
+      "id": "shilapatra",
+      "name": "Shilapatra",
+      "type": "rss",
+      "url": "https://shilapatra.com/feed",
+      "categories": ["politics", "culture", "general"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "ukaalo",
+      "name": "Ukaalo",
+      "type": "scrape-headless",
+      "url": "https://www.ukaalo.com",
+      "selector": "h2 a, h3 a",
+      "categories": ["politics", "sports", "culture"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "yt_whysooffended",
+      "name": "Why So Offended",
+      "type": "youtube",
+      "channelId": "UC2CAM55AnDflrpC20uH700A",
+      "categories": ["politics", "culture"],
+      "weight": 1.1,
+      "enabled": true
+    },
+    {
+      "id": "yt_tikaramyatri",
+      "name": "Tikaram Yatri",
+      "type": "youtube",
+      "channelId": "UCFdV3L22rZSIQl60YKONuOg",
+      "categories": ["politics", "general"],
+      "weight": 1.1,
+      "enabled": true
+    },
+    {
+      "id": "yt_nepalicomment",
+      "name": "The Nepali Comment",
+      "type": "youtube",
+      "channelId": "UCEJJOeZUqhiHQL3T0PWZong",
+      "categories": ["politics", "culture"],
+      "weight": 1.1,
+      "enabled": true
+    },
+    {
+      "id": "yt_toughtalk",
+      "name": "Tough Talk",
+      "type": "youtube",
+      "channelId": "UClgqAXWBfF1p4sGKtcvs39Q",
+      "categories": ["politics", "culture"],
+      "weight": 1.1,
+      "enabled": true
+    },
+    {
+      "id": "x_shahbalen",
+      "name": "Balen Shah (PM)",
+      "type": "twitter",
+      "handle": "@shahbalen",
+      "categories": ["politics"],
+      "weight": 1.5,
+      "enabled": true
+    },
+    {
+      "id": "x_swarnimwagle",
+      "name": "Swarnim Wagle",
+      "type": "twitter",
+      "handle": "@SwarnimWagle",
+      "categories": ["politics", "finance"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "x_sudheerktm",
+      "name": "Sudheer Sharma",
+      "type": "twitter",
+      "handle": "@sudheerktm",
+      "categories": ["politics"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "x_ameetdhakal",
+      "name": "Ameet Dhakal",
+      "type": "twitter",
+      "handle": "@ameetdhakal",
+      "categories": ["politics"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "x_sudeepshree",
+      "name": "Sudeep Shrestha",
+      "type": "twitter",
+      "handle": "@sudeepshree",
+      "categories": ["politics", "general"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "x_registandiary",
+      "name": "Devendra Bhattarai",
+      "type": "twitter",
+      "handle": "@registandiary",
+      "categories": ["politics"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "x_deepakadk",
+      "name": "Deepak Adhikari",
+      "type": "twitter",
+      "handle": "@deepakadk",
+      "categories": ["politics", "general"],
+      "weight": 1.0,
+      "enabled": true
+    }
+  ]
+}
