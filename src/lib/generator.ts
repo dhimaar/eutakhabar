@@ -97,10 +97,14 @@ ${itemList}`,
 
     const headlines: Headline[] = [];
     const validCategories = ["politics", "sports", "culture", "finance", "general"];
+    const usedIndices = new Set<number>();
 
     for (const generated of parsed) {
       const originalItem = top30[generated.index];
       if (!originalItem) continue;
+      // Skip duplicate indices — prevents same article appearing twice with different headlines
+      if (usedIndices.has(generated.index)) continue;
+      usedIndices.add(generated.index);
 
       const style = validateStyle(generated.style);
       const category = generated.category && validCategories.includes(generated.category)

@@ -40,7 +40,8 @@ export async function collectRSS(source: SourceConfig): Promise<RawContentItem[]
       timestamp: item.isoDate ?? item.pubDate ?? new Date().toISOString(),
       engagement: {},
       summary: sanitizeText(item.contentSnippet?.slice(0, 500) ?? ""),
-      imageUrl: extractImage(item),
+      // Don't use RSS inline images — OG images fetched later are more reliable
+      imageUrl: undefined,
       alwaysInclude,
     })).filter((item) => item.title && item.url);
   } catch (error) {

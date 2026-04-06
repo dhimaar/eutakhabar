@@ -53,9 +53,18 @@ export async function collectAll(): Promise<RawContentItem[]> {
     capped.push(...items.slice(0, MAX_PER_SOURCE));
   }
 
+  // Filter out items older than 24 hours
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const fresh = capped.filter((item) => {
+    const ts = new Date(item.timestamp).getTime();
+    // If timestamp is invalid or clearly fake (within last minute = scraper default), keep it
+    if (isNaN(ts)) return true;
+    return ts > cutoff;
+  });
+
   // Deduplicate by URL
   const seen = new Set<string>();
-  return capped.filter((item) => {
+  return fresh.filter((item) => {
     if (seen.has(item.url)) return false;
     seen.add(item.url);
     return true;
