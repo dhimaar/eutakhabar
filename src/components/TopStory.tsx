@@ -18,7 +18,6 @@ export default function TopStories({ headlines, lang }: TopStoriesProps) {
       {/* PRIMARY — the screamer */}
       <a
         href={primary.url}
-        target="_blank"
         rel="noopener noreferrer"
         onClick={() => trackHeadlineClick(primary.id, 0, primary.category, "top")}
         className="block group"

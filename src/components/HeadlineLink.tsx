@@ -20,7 +20,6 @@ export default function HeadlineLink({ headline, lang, index }: HeadlineLinkProp
         <div className="my-2 flex justify-center">
           <a
             href={headline.url}
-            target="_blank"
             rel="noopener noreferrer"
             className={`block overflow-hidden ${isMajor ? "max-w-[480px]" : "max-w-[400px]"}`}
           >
@@ -38,7 +37,6 @@ export default function HeadlineLink({ headline, lang, index }: HeadlineLinkProp
 
       <a
         href={headline.url}
-        target="_blank"
         rel="noopener noreferrer"
         onClick={() => trackHeadlineClick(headline.id, index, headline.category, headline.style)}
         className="headline-link group inline-block"

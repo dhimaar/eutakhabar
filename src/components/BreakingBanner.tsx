@@ -12,7 +12,6 @@ export default function BreakingBanner({ headline, lang }: BreakingBannerProps) 
   return (
     <a
       href={headline.url}
-      target="_blank"
       rel="noopener noreferrer"
       onClick={() => trackBreakingClick(headline.id)}
       className="block siren-bg mb-2"
