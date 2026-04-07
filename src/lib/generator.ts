@@ -217,18 +217,20 @@ function tokenize(text: string): string[] {
 }
 
 /**
- * Validates a body-rewritten headline against the article body's first paragraph.
+ * Validates a body-rewritten headline against the article body.
  * Rejects rewrites that drift too far from the actual content.
+ * Compares against the first ~6 sentences (covers headline + lede + nut graf).
  */
 function validateBodyRewrite(headline: string, body: string): boolean {
   if (headline.length > 100) return false;
-  const lead = body.split(/[.!?]/).slice(0, 3).join(" ");
+  const lead = body.split(/[.!?]/).slice(0, 6).join(" ");
   const leadTokens = new Set(tokenize(lead));
   if (leadTokens.size === 0) return true;
   const headTokens = tokenize(headline);
   if (headTokens.length === 0) return false;
+  // At least one substantive word from the lead must appear in the headline.
   const overlap = headTokens.filter((w) => leadTokens.has(w)).length;
-  return overlap / headTokens.length >= 0.3;
+  return overlap >= 1;
 }
 
 /**

@@ -275,8 +275,11 @@ Choose defend if the critic is wrong, rewrite if they have a point.`;
       messages: [{ role: "user", content: prompt }],
     });
     const raw = response.content[0].type === "text" ? response.content[0].text : "";
-    const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-    const parsed = JSON.parse(text) as { decision: string; en?: string; ne?: string };
+    // Lenient JSON extraction: pull the first {...} block, ignoring any
+    // surrounding prose Claude may have added.
+    const match = raw.match(/\{[\s\S]*?\}/);
+    if (!match) throw new Error("no JSON object in response");
+    const parsed = JSON.parse(match[0]) as { decision: string; en?: string; ne?: string };
     if (parsed.decision === "defend") return { kind: "defend" };
     if (parsed.decision === "rewrite" && parsed.en && parsed.ne) {
       return { kind: "rewrite", newText: { en: parsed.en, ne: parsed.ne } };

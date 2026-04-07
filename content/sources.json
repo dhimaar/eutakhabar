@@ -142,7 +142,7 @@
       "selector": "h2 a, h3 a",
       "categories": ["politics", "sports", "culture"],
       "weight": 1.0,
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "yt_whysooffended",

@@ -1,11 +1,15 @@
 import { cookies } from "next/headers";
 import { readCache } from "@/lib/cache";
 import { runPipeline } from "@/lib/pipeline";
+import type { SiteContent, Language } from "@/lib/types";
 import HeadlineFeed from "@/components/HeadlineFeed";
-import type { Language } from "@/lib/types";
 
 export const revalidate = 1800;
 export const maxDuration = 300;
+
+// Module-level promise lock — all concurrent cold-start requests await the
+// same pipeline run instead of stampeding the upstream APIs.
+let coldStartPromise: Promise<SiteContent> | null = null;
 
 export default async function HomePage() {
   const cookieStore = await cookies();
@@ -19,8 +23,15 @@ export default async function HomePage() {
   // Subsequent requests read from cache. Cron keeps it fresh after that.
   if (!content) {
     try {
-      console.log("[Page] No cache found, running pipeline inline...");
-      content = await runPipeline();
+      if (!coldStartPromise) {
+        console.log("[Page] No cache found, running pipeline inline...");
+        coldStartPromise = runPipeline().finally(() => {
+          coldStartPromise = null;
+        });
+      } else {
+        console.log("[Page] Pipeline already running, awaiting existing run...");
+      }
+      content = await coldStartPromise;
     } catch (error) {
       console.error("[Page] Inline pipeline run failed:", error);
     }

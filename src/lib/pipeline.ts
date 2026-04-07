@@ -45,26 +45,31 @@ export async function runPipeline(): Promise<SiteContent> {
   });
   if (needsCheck.length > 0) {
     const metas = await fetchArticleMetaBatch(needsCheck.map((i) => i.url));
-    let dropped = 0;
+    let droppedStale = 0;
+    let droppedUnverified = 0;
     let opinions = 0;
     for (const item of needsCheck) {
       const meta = metas.get(item.url);
-      if (!meta) continue;
-      if (meta.publishedAt) {
+      if (meta?.publishedAt) {
         if (meta.publishedAt < cutoff) {
           item.timestamp = "STALE";
-          dropped++;
+          droppedStale++;
           continue;
         }
         item.timestamp = new Date(meta.publishedAt).toISOString();
-      }
-      if (meta.imageUrl && !item.imageUrl) item.imageUrl = meta.imageUrl;
-      if (meta.isOpinion) {
-        item.isOpinion = true;
-        opinions++;
+        if (meta.imageUrl && !item.imageUrl) item.imageUrl = meta.imageUrl;
+        if (meta.isOpinion) {
+          item.isOpinion = true;
+          opinions++;
+        }
+      } else {
+        // No verifiable published_time AND collector gave a fake timestamp.
+        // Better to drop than risk surfacing stale news as TOP.
+        item.timestamp = "STALE";
+        droppedUnverified++;
       }
     }
-    console.log(`[Pipeline] Meta check: ${dropped} stale dropped, ${opinions} flagged as opinion (${needsCheck.length} checked)`);
+    console.log(`[Pipeline] Meta check: ${droppedStale} stale + ${droppedUnverified} unverified dropped, ${opinions} flagged as opinion (${needsCheck.length} checked)`);
   }
   const rawItems = rawItemsAll.filter((i) => i.timestamp !== "STALE");
 
