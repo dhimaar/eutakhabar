@@ -39,6 +39,7 @@ export interface RawContentItem {
   expiresAt?: string;
   alwaysInclude?: boolean;
   clusterId?: string;
+  keyTopics?: string[];
 }
 
 export interface SourceLink {

@@ -1,13 +1,17 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { collectAll } from "./collectors";
 import { analyzeContent } from "./analyzer";
 import { scoreItems } from "./scoring";
 import { generateHeadlines } from "./generator";
+import { reviewHeadlines, applyReviewPatches, resetEscalationBudget } from "./editor-review";
 import { readCache, writeCache } from "./cache";
 import { clearSourceCache } from "./sources";
 import { fetchOgImages } from "./og-image";
 import type { SiteContent, Headline, ManualOverride, RawContentItem, SourceLink } from "./types";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
+
+const anthropic = new Anthropic();
 
 export async function runPipeline(): Promise<SiteContent> {
   console.log("[Pipeline] Starting refresh cycle...");
@@ -35,14 +39,38 @@ export async function runPipeline(): Promise<SiteContent> {
   console.log("[Pipeline] Step 3: Scoring items...");
   const scoredItems = scoreItems(analyzedItems);
 
-  // Step 3.5: Bundle cross-source stories
-  console.log("[Pipeline] Step 3.5: Bundling cross-source stories...");
-  const { bundled, sourceMap } = bundleCrossSource(scoredItems);
-  console.log(`[Pipeline] ${bundled.length} unique stories (${scoredItems.length - bundled.length} duplicates merged)`);
+  // Step 3.5: Bundle cross-source stories (LLM semantic clustering)
+  console.log("[Pipeline] Step 3.5: LLM clustering cross-source stories...");
+  const { bundled, sourceMap } = await clusterStoriesLLM(scoredItems);
+  console.log(`[Pipeline] LLM clustering: ${scoredItems.length} items → ${bundled.length} stories (${scoredItems.length - bundled.length} duplicates merged)`);
 
   // Step 4: Generate headlines (Claude pass 2 — rewrite)
   console.log("[Pipeline] Step 4: Generating headlines...");
   let headlines = await generateHeadlines(bundled);
+
+  // Step 4.5: Editor review (GPT critic)
+  console.log("[Pipeline] Step 4.5: Editor review...");
+  resetEscalationBudget();
+  const review = await reviewHeadlines(headlines, bundled);
+  if (review.applied.length > 0 || review.rejected.length > 0) {
+    const counts = { drop: 0, demote: 0, rewrite: 0 };
+    for (const p of review.applied) counts[p.action]++;
+    console.log(`[Pipeline] Editor review: ${review.applied.length} patches applied (drop=${counts.drop}, demote=${counts.demote}, rewrite=${counts.rewrite}), ${review.rejected.length} rejected`);
+    headlines = await applyReviewPatches(headlines, bundled, review);
+
+    // Audit log
+    try {
+      const reviewDir = join(process.cwd(), "cache");
+      mkdirSync(reviewDir, { recursive: true });
+      writeFileSync(
+        join(reviewDir, "last-review.json"),
+        JSON.stringify({ at: new Date().toISOString(), review }, null, 2)
+      );
+    } catch {}
+  }
+
+  // Step 4.6: Final structural dedup safety net
+  headlines = structuralDedup(headlines);
 
   // Attach source links to headlines
   for (const headline of headlines) {
@@ -173,6 +201,164 @@ function applyOverrides(headlines: Headline[]): Headline[] {
     console.error("[Pipeline] Failed to apply overrides:", error);
     return headlines;
   }
+}
+
+/**
+ * LLM-based semantic clustering. Sends top items to Haiku and asks it to group
+ * stories covering the same underlying event — handles cross-lingual duplicates
+ * and paraphrases that the keyword approach misses.
+ *
+ * Falls back to keyword bundling if the LLM call fails.
+ */
+async function clusterStoriesLLM(items: RawContentItem[]): Promise<{
+  bundled: RawContentItem[];
+  sourceMap: Map<string, SourceLink[]>;
+}> {
+  // Only cluster top 50 to bound cost; everything below stays as-is
+  const TOP_N = 50;
+  const candidates = items.slice(0, TOP_N);
+  const tail = items.slice(TOP_N);
+
+  if (candidates.length < 2) {
+    return bundleCrossSource(items);
+  }
+
+  type ClusterResp = { clusterId: number; memberIndices: number[]; primaryIndex: number };
+  let clusters: ClusterResp[] | null = null;
+
+  try {
+    const list = candidates
+      .map(
+        (it, idx) =>
+          `[${idx}] source=${it.source} title="${it.title}" topics=[${(it.keyTopics ?? []).join(", ")}] summary="${(it.summary ?? "").slice(0, 200)}"`
+      )
+      .join("\n");
+
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2000,
+      messages: [
+        {
+          role: "user",
+          content: `Group these news items into clusters where each cluster covers the SAME underlying event. Items in different languages (English / Nepali Devanagari) about the same event MUST cluster together. Paraphrases and different angles of the same event also belong in one cluster.
+
+Most items will be unique (their own cluster of 1). Only group when you're confident it's the same story.
+
+For each cluster pick a "primaryIndex" — the item with the most informative title.
+
+Return ONLY a JSON array (no markdown):
+[{"clusterId": 0, "memberIndices": [0], "primaryIndex": 0}, {"clusterId": 1, "memberIndices": [1, 5, 12], "primaryIndex": 5}]
+
+Every index from 0 to ${candidates.length - 1} must appear in exactly one cluster.
+
+Items:
+${list}`,
+        },
+      ],
+    });
+
+    const raw = response.content[0].type === "text" ? response.content[0].text : "";
+    const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) throw new Error("not array");
+    clusters = parsed as ClusterResp[];
+  } catch (error) {
+    console.error("[Pipeline] LLM clustering failed, falling back to keyword bundling:", error);
+    return bundleCrossSource(items);
+  }
+
+  // Validate coverage — every index must appear exactly once
+  const seen = new Set<number>();
+  for (const c of clusters) {
+    for (const m of c.memberIndices) {
+      if (m < 0 || m >= candidates.length || seen.has(m)) {
+        console.error("[Pipeline] LLM clustering returned invalid coverage, falling back");
+        return bundleCrossSource(items);
+      }
+      seen.add(m);
+    }
+  }
+  if (seen.size !== candidates.length) {
+    // Patch: missing items become singletons
+    for (let i = 0; i < candidates.length; i++) {
+      if (!seen.has(i)) clusters.push({ clusterId: -i - 1, memberIndices: [i], primaryIndex: i });
+    }
+  }
+
+  const sourceMap = new Map<string, SourceLink[]>();
+  const bundled: RawContentItem[] = [];
+
+  for (const cluster of clusters) {
+    const members = cluster.memberIndices
+      .map((i) => candidates[i])
+      .filter(Boolean)
+      // Sort by score so highest-scored is first
+      .sort((a, b) => (b.newsworthiness ?? 0) - (a.newsworthiness ?? 0));
+
+    if (members.length === 0) continue;
+
+    if (members.length >= 3) {
+      // BIG STORY: keep top 3 as cluster
+      const clusterId = `cluster-${members[0].id}`;
+      for (const m of members.slice(0, 3)) {
+        m.clusterId = clusterId;
+        bundled.push(m);
+        sourceMap.set(m.id, [{ source: m.source, url: m.url, title: m.title }]);
+      }
+    } else {
+      // 1 or 2 members — keep only the primary (highest scored)
+      const primary = members[0];
+      bundled.push(primary);
+      sourceMap.set(primary.id, [
+        { source: primary.source, url: primary.url, title: primary.title },
+      ]);
+    }
+  }
+
+  // Append the tail (items beyond TOP_N) as singletons
+  for (const item of tail) {
+    bundled.push(item);
+    sourceMap.set(item.id, [{ source: item.source, url: item.url, title: item.title }]);
+  }
+
+  return { bundled, sourceMap };
+}
+
+/**
+ * Final structural dedup safety net — runs after LLM clustering and editor review.
+ * Catches exact-collision misses by grouping on URL host + first 5 normalized words
+ * of the English headline. Cheap insurance.
+ */
+function structuralDedup(headlines: Headline[]): Headline[] {
+  const seen = new Map<string, Headline>();
+  const out: Headline[] = [];
+  for (const h of headlines) {
+    let host = "";
+    try {
+      host = new URL(h.url).hostname;
+    } catch {}
+    const fingerprint = h.text.en
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 5)
+      .join(" ");
+    const key = `${host}|${fingerprint}`;
+    const existing = seen.get(key);
+    if (existing) {
+      // Keep the higher-scored / earlier-positioned one
+      if ((h.score ?? 0) > (existing.score ?? 0)) {
+        const idx = out.indexOf(existing);
+        if (idx !== -1) out[idx] = h;
+        seen.set(key, h);
+      }
+      continue;
+    }
+    seen.set(key, h);
+    out.push(h);
+  }
+  return out;
 }
 
 function bundleCrossSource(items: RawContentItem[]): {

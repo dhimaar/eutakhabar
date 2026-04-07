@@ -49,6 +49,13 @@ CRITICAL RULES — ACCURACY FIRST:
 2. Many source titles are in Nepali (Devanagari). You MUST correctly understand the Nepali text before rewriting. Do NOT guess or mistranslate — if the Nepali title says "प्रधानमन्त्रीले विकास योजना सार्वजनिक गरे" that means "PM released development plan", NOT "PM EXPOSED" or similar.
 3. The English ("en") headline should be a faithful, punchy English version of the actual story.
 4. The Nepali ("ne") headline should be a faithful, punchy Nepali version — written ENTIRELY in Devanagari script. No English words, no Roman letters. Translate ALL words into proper Nepali.
+4a. **PROPER NOUNS** — names of people, places, parties, and organizations — must be TRANSLITERATED to Devanagari phonetically, NEVER literally translated. Examples:
+   - "Rabi Lamichhane" → "रवि लामिछाने" (NOT a literal word translation)
+   - "Sher Bahadur Deuba" → "शेरबहादुर देउवा"
+   - "KP Sharma Oli" → "केपी शर्मा ओली"
+   - "Nepal Swatantra Party" → "नेपाल स्वतन्त्र पार्टी"
+   - "Kathmandu" → "काठमाडौं", "Pokhara" → "पोखरा"
+   If unsure whether a token is a name, transliterate it. Translating a person's name into Nepali words is a serious factual error.
 
 STYLE RULES:
 5. Use ALL CAPS on 1-2 key dramatic words per English headline (e.g., "EXPOSES", "STUNS") — but only where it matches the actual story tone.

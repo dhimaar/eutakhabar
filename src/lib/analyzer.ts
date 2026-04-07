@@ -47,6 +47,7 @@ export async function analyzeContent(
           summary: result.summary,
           newsworthiness: result.newsworthiness,
           category: result.category,
+          keyTopics: result.keyTopics,
         });
       }
       // Items scoring < 7 are dropped
