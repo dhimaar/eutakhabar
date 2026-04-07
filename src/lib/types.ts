@@ -40,6 +40,7 @@ export interface RawContentItem {
   alwaysInclude?: boolean;
   clusterId?: string;
   keyTopics?: string[];
+  isOpinion?: boolean;
 }
 
 export interface SourceLink {

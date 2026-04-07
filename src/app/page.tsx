@@ -1,16 +1,30 @@
 import { cookies } from "next/headers";
 import { readCache } from "@/lib/cache";
+import { runPipeline } from "@/lib/pipeline";
 import HeadlineFeed from "@/components/HeadlineFeed";
 import type { Language } from "@/lib/types";
 
 export const revalidate = 1800;
+export const maxDuration = 300;
 
 export default async function HomePage() {
   const cookieStore = await cookies();
   const langCookie = cookieStore.get("lang")?.value;
   const initialLang: Language = langCookie === "ne" ? "ne" : "en";
 
-  const content = readCache();
+  let content = readCache();
+
+  // Cold-start safety net: if cache is missing (e.g. fresh Cloud Run revision),
+  // run the pipeline inline so the first visitor doesn't see a "loading" page.
+  // Subsequent requests read from cache. Cron keeps it fresh after that.
+  if (!content) {
+    try {
+      console.log("[Page] No cache found, running pipeline inline...");
+      content = await runPipeline();
+    } catch (error) {
+      console.error("[Page] Inline pipeline run failed:", error);
+    }
+  }
 
   if (!content) {
     return (

@@ -2,11 +2,12 @@ import Anthropic from "@anthropic-ai/sdk";
 import { collectAll } from "./collectors";
 import { analyzeContent } from "./analyzer";
 import { scoreItems } from "./scoring";
-import { generateHeadlines } from "./generator";
+import { generateHeadlines, rewriteTopHeadlines } from "./generator";
+import { fetchArticleBodies } from "./article-body";
 import { reviewHeadlines, applyReviewPatches, resetEscalationBudget } from "./editor-review";
 import { readCache, writeCache } from "./cache";
 import { clearSourceCache } from "./sources";
-import { fetchOgImages } from "./og-image";
+import { fetchOgImages, fetchArticleMetaBatch } from "./og-image";
 import type { SiteContent, Headline, ManualOverride, RawContentItem, SourceLink } from "./types";
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
@@ -22,13 +23,50 @@ export async function runPipeline(): Promise<SiteContent> {
 
   // Step 1: Collect from all sources
   console.log("[Pipeline] Step 1: Collecting content...");
-  const rawItems = await collectAll();
-  console.log(`[Pipeline] Collected ${rawItems.length} items`);
+  const rawItemsAll = await collectAll();
+  console.log(`[Pipeline] Collected ${rawItemsAll.length} items`);
 
-  if (rawItems.length === 0) {
+  if (rawItemsAll.length === 0) {
     console.log("[Pipeline] No items collected, returning cached content");
     return readCache() ?? emptyContent();
   }
+
+  // Step 1.5: Article meta — fetch published_time, og:image, and opinion
+  // detection in one pass. Items whose collector-default timestamp is fresh
+  // (within last 5 min, meaning no real pubdate from source) are checked
+  // against article:published_time and dropped if older than 24h. All
+  // checked items also get an isOpinion flag set from URL/meta heuristics.
+  console.log("[Pipeline] Step 1.5: Article meta check (freshness + opinion)...");
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const fakeTsThreshold = Date.now() - 5 * 60 * 1000;
+  const needsCheck = rawItemsAll.filter((item) => {
+    const ts = new Date(item.timestamp).getTime();
+    return !isNaN(ts) && ts > fakeTsThreshold;
+  });
+  if (needsCheck.length > 0) {
+    const metas = await fetchArticleMetaBatch(needsCheck.map((i) => i.url));
+    let dropped = 0;
+    let opinions = 0;
+    for (const item of needsCheck) {
+      const meta = metas.get(item.url);
+      if (!meta) continue;
+      if (meta.publishedAt) {
+        if (meta.publishedAt < cutoff) {
+          item.timestamp = "STALE";
+          dropped++;
+          continue;
+        }
+        item.timestamp = new Date(meta.publishedAt).toISOString();
+      }
+      if (meta.imageUrl && !item.imageUrl) item.imageUrl = meta.imageUrl;
+      if (meta.isOpinion) {
+        item.isOpinion = true;
+        opinions++;
+      }
+    }
+    console.log(`[Pipeline] Meta check: ${dropped} stale dropped, ${opinions} flagged as opinion (${needsCheck.length} checked)`);
+  }
+  const rawItems = rawItemsAll.filter((i) => i.timestamp !== "STALE");
 
   // Step 2: Analyze (Claude pass 1 — transcripts, newsworthiness)
   console.log("[Pipeline] Step 2: Analyzing content...");
@@ -71,6 +109,22 @@ export async function runPipeline(): Promise<SiteContent> {
 
   // Step 4.6: Final structural dedup safety net
   headlines = structuralDedup(headlines);
+
+  // Step 4.7: Full-body rewrite for top stories only
+  // After critic + dedup, the top set is stable. Fetch full article bodies
+  // for top/breaking items and ask Claude to write a sharper headline using
+  // the body content (not just the source title).
+  console.log("[Pipeline] Step 4.7: Body-rewrite for top stories...");
+  const topUrls = headlines
+    .filter((h) => h.style === "top" || h.style === "breaking")
+    .map((h) => h.url);
+  if (topUrls.length > 0) {
+    const bodies = await fetchArticleBodies(topUrls);
+    const isOpinionMap = new Map<string, boolean>();
+    for (const item of bundled) isOpinionMap.set(item.id, !!item.isOpinion);
+    const result = await rewriteTopHeadlines(headlines, bodies, isOpinionMap);
+    console.log(`[Pipeline] Body-rewrite: ${result.rewritten} rewritten, ${result.skipped} skipped (${topUrls.length} top stories, ${bodies.size} bodies fetched)`);
+  }
 
   // Attach source links to headlines
   for (const headline of headlines) {

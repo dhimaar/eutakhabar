@@ -74,6 +74,7 @@ export async function reviewHeadlines(
       ne: h.text.ne,
       sourceTitle: src?.title ?? "",
       sourceSummary: src?.summary ?? "",
+      isOpinion: src?.isOpinion ?? false,
     };
   });
 
@@ -97,6 +98,8 @@ For each patch, provide a confidence score 1-10. Only your high-confidence (8+) 
 
 CRITICAL: Pay special attention to Nepali (ne) headlines. Names of people (e.g., Rabi Lamichhane → रवि लामिछाने), parties (Nepal Swatantra Party → नेपाल स्वतन्त्र पार्टी), and places must be TRANSLITERATED phonetically, NEVER literally translated. If you see a literal translation of a name, emit a "rewrite" patch with category "factual_error" and provide a corrected Nepali headline.
 
+OPINION PIECES: Items with isOpinion=true are columns/editorials, NOT news. Their English headline MUST start with "OPINION: " and Nepali with "विचार: ", and they must use stance verbs (ARGUES, URGES, WARNS), not news verbs (EXPOSES, REVEALS, STUNS). If an opinion headline is framed as fact, emit a "rewrite" patch with category "misleading" and a corrected headline. If an opinion is styled "top" or "breaking", emit a "demote" patch with category "wrong_priority".
+
 Return ONLY a JSON array (no markdown), max 10 patches:
 [{"id": "...", "action": "drop"|"demote"|"rewrite", "newText": {"en": "...", "ne": "..."}, "reason": "...", "category": "...", "confidence": 9}]
 
@@ -107,7 +110,7 @@ Headlines to review:
 ${items
   .map(
     (i) =>
-      `[${i.idx}] id=${i.id} style=${i.style}
+      `[${i.idx}] id=${i.id} style=${i.style}${i.isOpinion ? " TYPE=OPINION" : ""}
 EN: ${i.en}
 NE: ${i.ne}
 Source title: ${i.sourceTitle}

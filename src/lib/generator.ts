@@ -26,7 +26,7 @@ export async function generateHeadlines(
   const itemList = top30
     .map(
       (item, idx) =>
-        `[${idx}] Source: ${item.source} | Category: ${item.category} | Score: ${item.newsworthiness ?? 0}${item.clusterId ? ` | Cluster: ${item.clusterId}` : ""}
+        `[${idx}] Source: ${item.source} | Category: ${item.category} | Score: ${item.newsworthiness ?? 0}${item.clusterId ? ` | Cluster: ${item.clusterId}` : ""}${item.isOpinion ? " | TYPE: OPINION" : ""}
 Title: ${item.title}
 URL: ${item.url}
 Summary: ${item.summary ?? "N/A"}`
@@ -56,6 +56,12 @@ CRITICAL RULES — ACCURACY FIRST:
    - "Nepal Swatantra Party" → "नेपाल स्वतन्त्र पार्टी"
    - "Kathmandu" → "काठमाडौं", "Pokhara" → "पोखरा"
    If unsure whether a token is a name, transliterate it. Translating a person's name into Nepali words is a serious factual error.
+4b. **OPINION PIECES** — items marked "TYPE: OPINION" are columns/editorials/blogs, NOT news reporting. Their headlines MUST be framed as opinion, not fact:
+   - English headline MUST start with "OPINION: " (e.g. "OPINION: Why Nepal MUST regulate crypto now")
+   - Nepali headline MUST start with "विचार: " (e.g. "विचार: नेपालले क्रिप्टो नियमन गर्नुपर्ने कारण")
+   - Do NOT use sensational news verbs like "EXPOSES", "STUNS", "REVEALS", "BREAKING" — those imply reporting. Use stance verbs like "ARGUES", "URGES", "WARNS", "DEMANDS" instead.
+   - Never present an author's opinion as an established fact.
+   - Opinion items should rarely be styled "top" or "breaking" — prefer "major" or "normal".
 
 STYLE RULES:
 5. Use ALL CAPS on 1-2 key dramatic words per English headline (e.g., "EXPOSES", "STUNS") — but only where it matches the actual story tone.
@@ -194,4 +200,139 @@ function sanitizeHeadline(text: string): string {
     .replace(/[<>"]/g, "")
     .trim()
     .slice(0, 200);
+}
+
+const STOP = new Set([
+  "the", "a", "an", "in", "on", "at", "to", "for", "of", "and", "or",
+  "is", "are", "was", "were", "be", "been", "has", "have", "had", "as",
+  "by", "with", "from", "that", "this", "it", "its", "but", "his", "her",
+]);
+
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s\u0900-\u097F]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP.has(w));
+}
+
+/**
+ * Validates a body-rewritten headline against the article body's first paragraph.
+ * Rejects rewrites that drift too far from the actual content.
+ */
+function validateBodyRewrite(headline: string, body: string): boolean {
+  if (headline.length > 100) return false;
+  const lead = body.split(/[.!?]/).slice(0, 3).join(" ");
+  const leadTokens = new Set(tokenize(lead));
+  if (leadTokens.size === 0) return true;
+  const headTokens = tokenize(headline);
+  if (headTokens.length === 0) return false;
+  const overlap = headTokens.filter((w) => leadTokens.has(w)).length;
+  return overlap / headTokens.length >= 0.3;
+}
+
+/**
+ * Second-pass rewrite for top stories using full article body.
+ * Mutates the headline `text` field in place. Skips opinion pieces.
+ * Falls through silently — original headline preserved on any failure.
+ */
+export async function rewriteTopHeadlines(
+  headlines: Headline[],
+  bodies: Map<string, string>,
+  isOpinionMap: Map<string, boolean>
+): Promise<{ rewritten: number; skipped: number }> {
+  // Pick top/breaking headlines that aren't opinion and have body text
+  const candidates = headlines.filter(
+    (h) =>
+      (h.style === "top" || h.style === "breaking") &&
+      !isOpinionMap.get(h.id) &&
+      bodies.has(h.url)
+  );
+
+  // For clusters, only rewrite the primary (lowest position) per clusterId
+  const seenCluster = new Set<string>();
+  const targets: Headline[] = [];
+  for (const h of candidates) {
+    if (h.clusterId) {
+      if (seenCluster.has(h.clusterId)) continue;
+      seenCluster.add(h.clusterId);
+    }
+    targets.push(h);
+    if (targets.length >= 5) break;
+  }
+
+  if (targets.length === 0) return { rewritten: 0, skipped: 0 };
+
+  const items = targets.map((h, idx) => ({
+    idx,
+    id: h.id,
+    currentEn: h.text.en,
+    currentNe: h.text.ne,
+    body: bodies.get(h.url) ?? "",
+  }));
+
+  let rewritten = 0;
+  let skipped = 0;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2000,
+      messages: [
+        {
+          role: "user",
+          content: `You are the editor of Euta Khabar. These are the TOP stories of the cycle. The current headlines were drafted from source titles only. Now you have the full article body — rewrite each headline to be sharper, more accurate, and more compelling, drawing on the actual content of the article (not just its source title).
+
+RULES:
+1. Stay accurate. The headline must reflect what the article actually says.
+2. Punchy Drudge style. Under 100 characters. ALL CAPS on 1-2 dramatic key words.
+3. Bilingual: provide both "en" (English) and "ne" (Nepali, ENTIRELY in Devanagari).
+4. Proper nouns (names of people, places, parties) MUST be transliterated to Devanagari phonetically — never literally translated.
+5. Lead with the strongest fact or revelation buried in the body — that's why we're reading the body in the first place.
+6. If the body is too short or you can't improve on the current headline, return the current text unchanged for that item.
+
+Return ONLY a JSON array (no markdown):
+[{"idx": 0, "en": "...", "ne": "..."}]
+
+Articles:
+
+${items
+  .map(
+    (i) =>
+      `[${i.idx}] CURRENT EN: ${i.currentEn}
+CURRENT NE: ${i.currentNe}
+BODY: ${i.body.slice(0, 3500)}`
+  )
+  .join("\n\n---\n\n")}`,
+        },
+      ],
+    });
+
+    const raw = response.content[0].type === "text" ? response.content[0].text : "";
+    const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    const parsed = JSON.parse(text) as Array<{ idx: number; en: string; ne: string }>;
+
+    for (const r of parsed) {
+      const target = targets[r.idx];
+      if (!target || !r.en || !r.ne) {
+        skipped++;
+        continue;
+      }
+      const body = bodies.get(target.url) ?? "";
+      if (!validateBodyRewrite(r.en, body)) {
+        console.log(`[BodyRewrite] Rejected drifted rewrite for "${target.text.en}"`);
+        skipped++;
+        continue;
+      }
+      target.text = {
+        en: sanitizeHeadline(r.en),
+        ne: sanitizeHeadline(r.ne),
+      };
+      rewritten++;
+    }
+  } catch (error) {
+    console.error("[BodyRewrite] Failed, keeping original headlines:", error);
+  }
+
+  return { rewritten, skipped };
 }

@@ -5,6 +5,150 @@
  */
 
 const OG_CACHE = new Map<string, string | null>();
+const META_CACHE = new Map<string, ArticleMeta>();
+
+export interface ArticleMeta {
+  imageUrl: string | null;
+  publishedAt: number | null; // unix ms
+  isOpinion: boolean;
+}
+
+const OPINION_URL_PATTERNS = /\/(opinion|opinions|views|view|editorial|editorials|blog|blogs|column|columns|commentary|perspective|perspectives|analysis)\//i;
+
+function detectOpinion(url: string, html: string): boolean {
+  if (OPINION_URL_PATTERNS.test(url)) return true;
+
+  // schema.org OpinionNewsArticle
+  if (/"@type"\s*:\s*"OpinionNewsArticle"/i.test(html)) return true;
+
+  // article:section meta
+  const sectionMatch = html.match(/<meta[^>]+property=["']article:section["'][^>]+content=["']([^"']+)["']/i)
+    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']article:section["']/i);
+  if (sectionMatch?.[1]) {
+    const section = sectionMatch[1].toLowerCase();
+    if (/(opinion|editorial|view|blog|column|commentary|perspective)/i.test(section)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Single fetch that extracts both OG image and article published time.
+ * Use this when you need both — avoids fetching the article twice.
+ */
+export async function fetchArticleMeta(url: string): Promise<ArticleMeta> {
+  const cached = META_CACHE.get(url);
+  if (cached) return cached;
+
+  const empty: ArticleMeta = { imageUrl: null, publishedAt: null, isOpinion: false };
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "EutaKhabar/1.0 (+https://eutakhabar.com)",
+        Accept: "text/html",
+      },
+      signal: AbortSignal.timeout(8000),
+      redirect: "follow",
+    });
+
+    if (!res.ok) {
+      META_CACHE.set(url, empty);
+      return empty;
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) {
+      META_CACHE.set(url, empty);
+      return empty;
+    }
+
+    let html = "";
+    const decoder = new TextDecoder();
+    while (html.length < 50000) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value, { stream: true });
+      if (html.includes("</head>")) break;
+    }
+    reader.cancel().catch(() => {});
+
+    // Extract og:image
+    let imageUrl: string | null = null;
+    const ogImg = html.match(
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+    ) ?? html.match(
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i
+    );
+    if (ogImg?.[1]) {
+      const resolved = resolveUrl(ogImg[1], url);
+      if (resolved && isValidImageUrl(resolved)) imageUrl = resolved;
+    }
+    if (!imageUrl) {
+      const tw = html.match(
+        /<meta[^>]+(?:name|property)=["']twitter:image["'][^>]+content=["']([^"']+)["']/i
+      ) ?? html.match(
+        /<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["']twitter:image["']/i
+      );
+      if (tw?.[1]) {
+        const resolved = resolveUrl(tw[1], url);
+        if (resolved && isValidImageUrl(resolved)) imageUrl = resolved;
+      }
+    }
+
+    // Extract published time — try multiple common patterns
+    let publishedAt: number | null = null;
+    const patterns: RegExp[] = [
+      /<meta[^>]+property=["']article:published_time["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']article:published_time["']/i,
+      /<meta[^>]+name=["']article:published_time["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+name=["']pubdate["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+itemprop=["']datePublished["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+name=["']publishdate["'][^>]+content=["']([^"']+)["']/i,
+      /<time[^>]+datetime=["']([^"']+)["']/i,
+    ];
+    for (const re of patterns) {
+      const m = html.match(re);
+      if (m?.[1]) {
+        const t = Date.parse(m[1]);
+        if (!isNaN(t)) {
+          publishedAt = t;
+          break;
+        }
+      }
+    }
+
+    const meta: ArticleMeta = { imageUrl, publishedAt, isOpinion: detectOpinion(url, html) };
+    META_CACHE.set(url, meta);
+    if (imageUrl) OG_CACHE.set(url, imageUrl);
+    return meta;
+  } catch {
+    META_CACHE.set(url, empty);
+    return empty;
+  }
+}
+
+/**
+ * Batch-fetch article metadata (image + published time) for multiple URLs.
+ */
+export async function fetchArticleMetaBatch(
+  urls: string[]
+): Promise<Map<string, ArticleMeta>> {
+  const results = new Map<string, ArticleMeta>();
+  const CONCURRENCY = 10;
+  const unique = Array.from(new Set(urls.filter(Boolean)));
+
+  for (let i = 0; i < unique.length; i += CONCURRENCY) {
+    const batch = unique.slice(i, i + CONCURRENCY);
+    const promises = batch.map(async (u) => {
+      const meta = await fetchArticleMeta(u);
+      results.set(u, meta);
+    });
+    await Promise.allSettled(promises);
+  }
+
+  return results;
+}
 
 export async function fetchOgImage(url: string): Promise<string | null> {
   if (OG_CACHE.has(url)) return OG_CACHE.get(url) ?? null;
