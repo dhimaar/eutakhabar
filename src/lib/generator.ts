@@ -124,11 +124,29 @@ ${itemList}`,
         ? generated.category as typeof originalItem.category
         : originalItem.category;
 
+      // Language sanity: en must not contain Devanagari, ne must contain it.
+      // If swapped, fix; if invalid, fall back to source title.
+      const DEVANAGARI = /[\u0900-\u097F]/;
+      let en = generated.en ?? "";
+      let ne = generated.ne ?? "";
+      if (DEVANAGARI.test(en) && !DEVANAGARI.test(ne)) {
+        // Claude swapped them
+        [en, ne] = [ne, en];
+      }
+      if (DEVANAGARI.test(en)) {
+        // EN still has Nepali — fall back to source title
+        en = originalItem.title;
+      }
+      if (!DEVANAGARI.test(ne)) {
+        // NE has no Nepali — fall back to source title
+        ne = originalItem.title;
+      }
+
       headlines.push({
         id: originalItem.id,
         text: {
-          en: sanitizeHeadline(generated.en),
-          ne: sanitizeHeadline(generated.ne),
+          en: sanitizeHeadline(en),
+          ne: sanitizeHeadline(ne),
         },
         url: originalItem.url,
         source: originalItem.source,
@@ -265,8 +283,7 @@ export async function rewriteTopHeadlines(
 
   if (targets.length === 0) return { rewritten: 0, skipped: 0 };
 
-  const items = targets.map((h, idx) => ({
-    idx,
+  const items = targets.map((h) => ({
     id: h.id,
     currentEn: h.text.en,
     currentNe: h.text.ne,
@@ -286,22 +303,24 @@ export async function rewriteTopHeadlines(
           content: `You are the editor of Euta Khabar. These are the TOP stories of the cycle. The current headlines were drafted from source titles only. Now you have the full article body — rewrite each headline to be sharper, more accurate, and more compelling, drawing on the actual content of the article (not just its source title).
 
 RULES:
-1. Stay accurate. The headline must reflect what the article actually says.
+1. Stay accurate. The headline MUST reflect what the article actually says. If the body content does not match the current headline at all, return the current text unchanged (the body fetch may have failed).
 2. Punchy Drudge style. Under 100 characters. ALL CAPS on 1-2 dramatic key words.
-3. Bilingual: provide both "en" (English) and "ne" (Nepali, ENTIRELY in Devanagari).
-4. Proper nouns (names of people, places, parties) MUST be transliterated to Devanagari phonetically — never literally translated.
-5. Lead with the strongest fact or revelation buried in the body — that's why we're reading the body in the first place.
-6. If the body is too short or you can't improve on the current headline, return the current text unchanged for that item.
+3. Bilingual: provide both "en" (English, Latin alphabet ONLY — NO Devanagari, NO Nepali words) and "ne" (Nepali, ENTIRELY in Devanagari script — NO Latin letters).
+4. NEVER swap the languages. The "en" field must be English. The "ne" field must be Devanagari Nepali.
+5. Proper nouns (names of people, places, parties) MUST be transliterated to Devanagari phonetically in the "ne" field — never literally translated.
+6. Lead with the strongest fact or revelation buried in the body — that's why we're reading the body.
+7. You MUST echo back the EXACT "id" string we provide for each item. Do not invent IDs.
 
 Return ONLY a JSON array (no markdown):
-[{"idx": 0, "en": "...", "ne": "..."}]
+[{"id": "the-id-we-gave-you", "en": "English headline", "ne": "देवनागरी शीर्षक"}]
 
 Articles:
 
 ${items
   .map(
     (i) =>
-      `[${i.idx}] CURRENT EN: ${i.currentEn}
+      `id="${i.id}"
+CURRENT EN: ${i.currentEn}
 CURRENT NE: ${i.currentNe}
 BODY: ${i.body.slice(0, 3500)}`
   )
@@ -312,11 +331,26 @@ BODY: ${i.body.slice(0, 3500)}`
 
     const raw = response.content[0].type === "text" ? response.content[0].text : "";
     const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-    const parsed = JSON.parse(text) as Array<{ idx: number; en: string; ne: string }>;
+    const parsed = JSON.parse(text) as Array<{ id: string; en: string; ne: string }>;
+
+    const targetById = new Map(targets.map((t) => [t.id, t]));
+    const DEVANAGARI = /[\u0900-\u097F]/;
 
     for (const r of parsed) {
-      const target = targets[r.idx];
+      const target = targetById.get(r.id);
       if (!target || !r.en || !r.ne) {
+        skipped++;
+        continue;
+      }
+      // Reject if EN contains Devanagari (Claude swapped languages)
+      if (DEVANAGARI.test(r.en)) {
+        console.log(`[BodyRewrite] Rejected: EN field contains Devanagari for id=${r.id}`);
+        skipped++;
+        continue;
+      }
+      // Reject if NE has no Devanagari (Claude returned English in NE field)
+      if (!DEVANAGARI.test(r.ne)) {
+        console.log(`[BodyRewrite] Rejected: NE field has no Devanagari for id=${r.id}`);
         skipped++;
         continue;
       }
