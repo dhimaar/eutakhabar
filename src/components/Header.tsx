@@ -44,20 +44,28 @@ export default function Header({ lang, onLanguageChange }: HeaderProps) {
 
   return (
     <header className="text-center mb-2">
-      {/* Title */}
-      <h1
-        className="font-bold tracking-tight leading-none cursor-default text-5xl sm:text-6xl md:text-7xl"
-        style={{
-          fontFamily: "'Georgia', 'Times New Roman', serif",
-          ...(lang === "ne" ? { fontSize: "clamp(3.5rem, 10vw, 5.5rem)" } : {}),
-        }}
-      >
-        {lang === "en" ? (
-          <>EUTA <span className="text-[#DC143C]">KHABAR</span></>
-        ) : (
-          <>एउटा <span className="text-[#DC143C]">खबर</span></>
-        )}
-      </h1>
+      {/* Logo + Title */}
+      <div className="flex items-center justify-center gap-3 sm:gap-4">
+        <img
+          src="/logo-mark.svg"
+          alt=""
+          className="h-12 sm:h-14 md:h-16 w-auto"
+          aria-hidden="true"
+        />
+        <h1
+          className="font-bold tracking-tight leading-none cursor-default text-5xl sm:text-6xl md:text-7xl"
+          style={{
+            fontFamily: "'Georgia', 'Times New Roman', serif",
+            ...(lang === "ne" ? { fontSize: "clamp(3.5rem, 10vw, 5.5rem)" } : {}),
+          }}
+        >
+          {lang === "en" ? (
+            <>EUTA <span className="text-[#DC143C]">KHABAR</span></>
+          ) : (
+            <>एउटा <span className="text-[#DC143C]">खबर</span></>
+          )}
+        </h1>
+      </div>
 
       {/* Date + Clock + Language */}
       <div className="mt-2 flex items-center justify-center gap-3 text-xs text-[#777]">

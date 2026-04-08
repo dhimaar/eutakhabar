@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Euta Khabar">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#111110"/>
+
+  <!-- Inner border (subtle editorial frame) -->
+  <rect x="32" y="32" width="448" height="448" fill="none" stroke="#2a2a28" stroke-width="2"/>
+
+  <!-- Breaking-dot accent -->
+  <circle cx="68" cy="68" r="10" fill="#DC143C"/>
+
+  <!-- एक monogram -->
+  <text x="256" y="310"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="280"
+        font-weight="700"
+        fill="#e8e8e3"
+        text-anchor="middle">एक</text>
+
+  <!-- Red rule (mirrors site rule-bold) -->
+  <rect x="116" y="356" width="280" height="6" fill="#DC143C"/>
+
+  <!-- Wordmark -->
+  <text x="256" y="420"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="44"
+        font-weight="700"
+        letter-spacing="6"
+        fill="#e8e8e3"
+        text-anchor="middle">EUTA KHABAR</text>
+</svg>
