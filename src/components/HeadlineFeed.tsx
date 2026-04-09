@@ -11,6 +11,8 @@ import HeadlineLink from "./HeadlineLink";
 import Footer from "./Footer";
 import ScrollTracker from "./ScrollTracker";
 import AutoRefresh from "./AutoRefresh";
+import EditorPicks from "./EditorPicks";
+import type { EditorPick } from "@/lib/editor-picks";
 
 interface HeadlineFeedProps {
   breaking: Headline | null;
@@ -18,6 +20,7 @@ interface HeadlineFeedProps {
   headlines: Headline[];
   lastUpdated: string;
   initialLang: Language;
+  editorPicks?: EditorPick[];
 }
 
 export default function HeadlineFeed({
@@ -26,6 +29,7 @@ export default function HeadlineFeed({
   headlines,
   lastUpdated,
   initialLang,
+  editorPicks = [],
 }: HeadlineFeedProps) {
   const [lang, setLang] = useState<Language>(initialLang);
   const [activeCategory, setActiveCategory] = useState<
@@ -76,6 +80,9 @@ export default function HeadlineFeed({
               {/* No rule between clustered headlines — they belong together */}
               {idx < filtered.length - 1 && !sameCluster && (
                 <div className="rule" style={{ margin: "6px 0" }} />
+              )}
+              {idx === 3 && editorPicks.length > 0 && (
+                <EditorPicks picks={editorPicks} lang={lang} />
               )}
             </div>
           );

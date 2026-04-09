@@ -66,6 +66,10 @@ export interface Headline {
   sourceLinks?: SourceLink[];
   expiresAt?: string;
   clusterId?: string;
+  // Rolling-feed bookkeeping
+  firstSeenAt?: string;
+  cyclesSurvived?: number;
+  keyTopics?: string[];
 }
 
 export interface SiteContent {
@@ -73,6 +77,8 @@ export interface SiteContent {
   topStories: Headline[];
   headlines: Headline[];
   lastUpdated: string;
+  // Persistent keyword memory across refreshes. Topic → last-seen-at timestamp.
+  seenTopics?: Record<string, { lastSeenAt: string; cycles: number }>;
 }
 
 export interface ManualOverride {

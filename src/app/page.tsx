@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { readCache } from "@/lib/cache";
 import { runPipeline } from "@/lib/pipeline";
+import { loadEditorPicks } from "@/lib/editor-picks";
 import type { SiteContent, Language } from "@/lib/types";
 import HeadlineFeed from "@/components/HeadlineFeed";
 
@@ -48,6 +49,8 @@ export default async function HomePage() {
     );
   }
 
+  const editorPicks = loadEditorPicks();
+
   return (
     <HeadlineFeed
       breaking={content.breaking}
@@ -55,6 +58,7 @@ export default async function HomePage() {
       headlines={content.headlines}
       lastUpdated={content.lastUpdated}
       initialLang={initialLang}
+      editorPicks={editorPicks}
     />
   );
 }

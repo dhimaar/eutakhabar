@@ -8,6 +8,14 @@ import { reviewHeadlines, applyReviewPatches, resetEscalationBudget } from "./ed
 import { readCache, writeCache } from "./cache";
 import { clearSourceCache } from "./sources";
 import { fetchOgImages, fetchArticleMetaBatch } from "./og-image";
+import {
+  buildSeenTopics,
+  serializeSeenTopics,
+  filterByTopicMemory,
+  ageHeadlines,
+  mergeRolling,
+  enforceCategoryMinimums,
+} from "./rolling-feed";
 import type { SiteContent, Headline, ManualOverride, RawContentItem, SourceLink } from "./types";
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
@@ -20,6 +28,19 @@ export async function runPipeline(): Promise<SiteContent> {
 
   // Clear cached source config to pick up any changes
   clearSourceCache();
+
+  // Load prev cache for rolling-feed aging + keyword memory
+  const prevCache = readCache();
+  const prevLive = prevCache
+    ? [
+        ...(prevCache.breaking ? [prevCache.breaking] : []),
+        ...prevCache.topStories,
+        ...prevCache.headlines,
+      ]
+    : [];
+  const prevUrls = new Set(prevLive.map((h) => h.url));
+  const seenTopics = buildSeenTopics(prevCache);
+  console.log(`[Pipeline] Rolling memory: ${prevLive.length} live headlines, ${seenTopics.size} topics in memory`);
 
   // Step 1: Collect from all sources
   console.log("[Pipeline] Step 1: Collecting content...");
@@ -84,12 +105,31 @@ export async function runPipeline(): Promise<SiteContent> {
 
   // Step 3.5: Bundle cross-source stories (LLM semantic clustering)
   console.log("[Pipeline] Step 3.5: LLM clustering cross-source stories...");
-  const { bundled, sourceMap } = await clusterStoriesLLM(scoredItems);
-  console.log(`[Pipeline] LLM clustering: ${scoredItems.length} items → ${bundled.length} stories (${scoredItems.length - bundled.length} duplicates merged)`);
+  const { bundled: bundledAll, sourceMap } = await clusterStoriesLLM(scoredItems);
+  console.log(`[Pipeline] LLM clustering: ${scoredItems.length} items → ${bundledAll.length} stories (${scoredItems.length - bundledAll.length} duplicates merged)`);
+
+  // Step 3.6: Rolling keyword memory — drop items that match still-live
+  // headlines unless they bring a novel topic.
+  const { kept: bundled, droppedDuplicate, droppedTopic } = filterByTopicMemory(
+    bundledAll,
+    seenTopics,
+    prevUrls
+  );
+  console.log(`[Pipeline] Topic memory: ${bundled.length} kept (${droppedDuplicate} exact dupes, ${droppedTopic} topic repeats dropped)`);
 
   // Step 4: Generate headlines (Claude pass 2 — rewrite)
   console.log("[Pipeline] Step 4: Generating headlines...");
   let headlines = await generateHeadlines(bundled);
+
+  // Attach keyTopics from source items onto fresh headlines for future memory
+  const topicsById = new Map<string, string[]>();
+  for (const it of bundledAll) if (it.keyTopics) topicsById.set(it.id, it.keyTopics);
+  for (const h of headlines) {
+    const t = topicsById.get(h.id);
+    if (t) h.keyTopics = t;
+    h.firstSeenAt = new Date().toISOString();
+    h.cyclesSurvived = 0;
+  }
 
   // Step 4.5: Editor review (GPT critic)
   console.log("[Pipeline] Step 4.5: Editor review...");
@@ -157,6 +197,36 @@ export async function runPipeline(): Promise<SiteContent> {
   }
   console.log(`[Pipeline] ${ogImages.size} OG images fetched`);
 
+  // Step 5.5: Rolling merge — age prev headlines, merge with fresh ones.
+  // New items take top slots; existing items drift down and eventually drop.
+  const agedPrev = ageHeadlines(prevLive);
+  console.log(`[Pipeline] Rolling merge: ${headlines.length} new + ${agedPrev.length} aged survivors`);
+  headlines = mergeRolling(headlines, agedPrev);
+
+  // Step 5.6: Category floors — ensure non-politics has minimum presence.
+  // Build fallback Headline candidates from unused bundled items.
+  const usedIds = new Set(headlines.map((h) => h.id));
+  const nowIso = new Date().toISOString();
+  const fallbackCandidates: Headline[] = bundledAll
+    .filter((it) => !usedIds.has(it.id))
+    .map((it) => ({
+      id: it.id,
+      text: { en: it.title, ne: it.title },
+      url: it.url,
+      source: it.source,
+      category: it.category,
+      style: "normal" as const,
+      position: 999,
+      score: it.newsworthiness ?? 0,
+      imageUrl: it.imageUrl,
+      createdAt: it.timestamp,
+      keyTopics: it.keyTopics,
+      firstSeenAt: nowIso,
+      cyclesSurvived: 0,
+    }));
+  headlines = enforceCategoryMinimums(headlines, fallbackCandidates);
+  headlines.forEach((h, i) => (h.position = i));
+
   // Step 6: Apply manual overrides
   console.log("[Pipeline] Step 6: Applying manual overrides...");
   headlines = applyOverrides(headlines);
@@ -168,11 +238,28 @@ export async function runPipeline(): Promise<SiteContent> {
     (h) => h.style !== "breaking" && h.style !== "top"
   );
 
+  // Update seen-topic memory with this cycle's topics
+  for (const h of headlines) {
+    for (const t of h.keyTopics ?? []) {
+      const key = t
+        .toLowerCase()
+        .replace(/[^\w\u0900-\u097F]+/g, "")
+        .trim();
+      if (!key) continue;
+      const existing = seenTopics.get(key);
+      seenTopics.set(key, {
+        lastSeenAt: Date.now(),
+        cycles: (existing?.cycles ?? 0) + 1,
+      });
+    }
+  }
+
   const content: SiteContent = {
     breaking,
     topStories,
     headlines: rest,
     lastUpdated: new Date().toISOString(),
+    seenTopics: serializeSeenTopics(seenTopics),
   };
 
   // Step 6: Write to cache
