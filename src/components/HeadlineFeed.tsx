@@ -12,6 +12,7 @@ import Footer from "./Footer";
 import ScrollTracker from "./ScrollTracker";
 import AutoRefresh from "./AutoRefresh";
 import EditorPicks from "./EditorPicks";
+import NepseTicker from "./NepseTicker";
 import type { EditorPick } from "@/lib/editor-picks";
 
 interface HeadlineFeedProps {
@@ -80,6 +81,12 @@ export default function HeadlineFeed({
               {/* No rule between clustered headlines — they belong together */}
               {idx < filtered.length - 1 && !sameCluster && (
                 <div className="rule" style={{ margin: "6px 0" }} />
+              )}
+              {idx === 2 && (
+                <>
+                  <div className="rule" style={{ margin: "6px 0" }} />
+                  <NepseTicker data={null} lang={lang} />
+                </>
               )}
               {idx === 3 && editorPicks.length > 0 && (
                 <EditorPicks picks={editorPicks} lang={lang} />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { Language } from "@/lib/types";
-import type { NepseData } from "@/lib/collectors/nepse";
+import type { NepseData } from "@/lib/nepse";
 
 interface NepseTickerProps {
   data: NepseData | null;
@@ -28,20 +28,23 @@ export default function NepseTicker({ data: initialData, lang }: NepseTickerProp
   const [data, setData] = useState<NepseData | null>(initialData);
 
   useEffect(() => {
-    if (!isNepseHours()) return;
-
-    const interval = setInterval(async () => {
-      if (!isNepseHours()) return;
+    let cancelled = false;
+    const load = async () => {
       try {
         const res = await fetch("/api/nepse");
-        if (res.ok) {
+        if (res.ok && !cancelled) {
           const fresh = await res.json();
           setData(fresh);
         }
       } catch { /* silent */ }
-    }, 90_000);
-
-    return () => clearInterval(interval);
+    };
+    load();
+    if (!isNepseHours()) return () => { cancelled = true; };
+    const interval = setInterval(load, 90_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   if (!data) return null;
@@ -54,6 +57,17 @@ export default function NepseTicker({ data: initialData, lang }: NepseTickerProp
     <div className="text-center my-4">
       <div className="text-xs font-bold tracking-[0.3em] text-[#777] uppercase mb-2">
         {lang === "en" ? "NEPSE INDEX" : "नेप्से सूचकांक"}
+        {data.marketStatus && (
+          <span
+            className="ml-2 px-1.5 py-0.5 rounded-sm text-[9px]"
+            style={{
+              color: data.marketStatus === "OPEN" ? "#22c55e" : "#777",
+              border: `1px solid ${data.marketStatus === "OPEN" ? "#22c55e" : "#444"}`,
+            }}
+          >
+            {data.marketStatus}
+          </span>
+        )}
       </div>
       <div className="text-3xl font-bold text-white">
         {data.index.toLocaleString("en-US", { minimumFractionDigits: 2 })}

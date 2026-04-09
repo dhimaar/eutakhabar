@@ -27,9 +27,13 @@ function getNepalDate(lang: Language): string {
   return getDateString(lang, nptDate);
 }
 
+interface CityWeather {
+  temp: number | null;
+  code: number | null;
+}
 interface Weather {
-  ktm: number | null;
-  jnk: number | null;
+  ktm: CityWeather;
+  jnk: CityWeather;
 }
 
 const NE_DIGITS = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
@@ -38,30 +42,60 @@ function toNepaliDigits(n: number | string): string {
 }
 function formatTemp(t: number | null, lang: Language): string {
   if (t === null) return "—";
-  return lang === "ne" ? `${toNepaliDigits(t)}°से` : `${t}°C`;
+  // Nepali: digits in Devanagari, °C kept in Latin per user preference
+  return lang === "ne" ? `${toNepaliDigits(t)}°C` : `${t}°C`;
+}
+
+// Open-Meteo WMO weather codes → emoji icon
+// https://open-meteo.com/en/docs (weather_code section)
+function weatherIcon(code: number | null): string {
+  if (code === null) return "";
+  if (code === 0) return "☀️"; // clear
+  if (code === 1 || code === 2) return "🌤️"; // mainly/partly clear
+  if (code === 3) return "☁️"; // overcast
+  if (code === 45 || code === 48) return "🌫️"; // fog
+  if (code >= 51 && code <= 57) return "🌦️"; // drizzle
+  if (code >= 61 && code <= 67) return "🌧️"; // rain
+  if (code >= 71 && code <= 77) return "❄️"; // snow
+  if (code >= 80 && code <= 82) return "🌧️"; // rain showers
+  if (code >= 85 && code <= 86) return "🌨️"; // snow showers
+  if (code >= 95 && code <= 99) return "⛈️"; // thunderstorm
+  return "";
 }
 
 async function fetchWeather(): Promise<Weather> {
+  const empty: Weather = {
+    ktm: { temp: null, code: null },
+    jnk: { temp: null, code: null },
+  };
   try {
     const url =
-      "https://api.open-meteo.com/v1/forecast?latitude=27.7172,26.7288&longitude=85.3240,85.9266&current=temperature_2m&timezone=Asia/Kathmandu";
+      "https://api.open-meteo.com/v1/forecast?latitude=27.7172,26.7288&longitude=85.3240,85.9266&current=temperature_2m,weather_code&timezone=Asia/Kathmandu";
     const res = await fetch(url);
     if (!res.ok) throw new Error("weather fetch failed");
     const data = await res.json();
     const arr = Array.isArray(data) ? data : [data];
-    return {
-      ktm: Math.round(arr[0]?.current?.temperature_2m ?? NaN) || null,
-      jnk: Math.round(arr[1]?.current?.temperature_2m ?? NaN) || null,
+    const parse = (i: number): CityWeather => {
+      const t = arr[i]?.current?.temperature_2m;
+      const c = arr[i]?.current?.weather_code;
+      return {
+        temp: typeof t === "number" ? Math.round(t) : null,
+        code: typeof c === "number" ? c : null,
+      };
     };
+    return { ktm: parse(0), jnk: parse(1) };
   } catch {
-    return { ktm: null, jnk: null };
+    return empty;
   }
 }
 
 export default function Header({ lang, onLanguageChange }: HeaderProps) {
   const [dateStr, setDateStr] = useState("");
   const [timeStr, setTimeStr] = useState("");
-  const [weather, setWeather] = useState<Weather>({ ktm: null, jnk: null });
+  const [weather, setWeather] = useState<Weather>({
+    ktm: { temp: null, code: null },
+    jnk: { temp: null, code: null },
+  });
 
   useEffect(() => {
     setDateStr(getNepalDate(lang));
@@ -109,15 +143,31 @@ export default function Header({ lang, onLanguageChange }: HeaderProps) {
             <span className="tabular-nums">{timeStr}</span>
           </>
         )}
-        {(weather.ktm !== null || weather.jnk !== null) && (
+        {(weather.ktm.temp !== null || weather.jnk.temp !== null) && (
           <>
             <span>·</span>
-            <span className="tabular-nums">
-              {lang === "en" ? "KTM" : "काठमाडौं"} {formatTemp(weather.ktm, lang)}
+            <span className="inline-flex items-center gap-1 tabular-nums">
+              <span className="text-[#999] font-medium">
+                {lang === "en" ? "KTM" : "काठमाडौं"}
+              </span>
+              {weather.ktm.code !== null && (
+                <span aria-hidden className="text-sm leading-none">
+                  {weatherIcon(weather.ktm.code)}
+                </span>
+              )}
+              <span className="text-[#e8e8e3]">{formatTemp(weather.ktm.temp, lang)}</span>
             </span>
             <span>·</span>
-            <span className="tabular-nums">
-              {lang === "en" ? "JNK" : "जनकपुर"} {formatTemp(weather.jnk, lang)}
+            <span className="inline-flex items-center gap-1 tabular-nums">
+              <span className="text-[#999] font-medium">
+                {lang === "en" ? "JNK" : "जनकपुर"}
+              </span>
+              {weather.jnk.code !== null && (
+                <span aria-hidden className="text-sm leading-none">
+                  {weatherIcon(weather.jnk.code)}
+                </span>
+              )}
+              <span className="text-[#e8e8e3]">{formatTemp(weather.jnk.temp, lang)}</span>
             </span>
           </>
         )}

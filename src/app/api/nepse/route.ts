@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { fetchNepseData } from "@/lib/collectors/nepse";
+import { getNepseData } from "@/lib/nepse";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<NextResponse> {
-  const data = await fetchNepseData();
+  const data = await getNepseData();
   if (!data) {
     return NextResponse.json({ error: "Failed to fetch NEPSE data" }, { status: 502 });
   }
