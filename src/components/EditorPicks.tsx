@@ -9,19 +9,24 @@ interface Props {
 export default function EditorPicks({ picks, lang }: Props) {
   if (picks.length === 0) return null;
   return (
-    <div className="my-2">
+    <>
+      <div className="rule" style={{ margin: "6px 0" }} />
       {picks.map((p, i) => (
         <div key={i}>
-          <a
-            href={p.url}
-            rel="noopener noreferrer"
-            className="block py-2 hover:text-[#DC143C] transition-colors text-base sm:text-lg font-semibold leading-snug"
-          >
-            {lang === "en" ? p.en : p.ne || p.en}
-          </a>
-          {i < picks.length - 1 && <div className="rule" style={{ margin: "6px 0" }} />}
+          <div className="text-center py-1">
+            <a
+              href={p.url}
+              rel="noopener noreferrer"
+              className="headline-link group inline-block"
+            >
+              <span className="group-hover:text-[#DC143C] transition-colors leading-snug text-base sm:text-lg text-[#e0e0e0]">
+                {lang === "en" ? p.en : p.ne || p.en}
+              </span>
+            </a>
+          </div>
+          <div className="rule" style={{ margin: "6px 0" }} />
         </div>
       ))}
-    </div>
+    </>
   );
 }

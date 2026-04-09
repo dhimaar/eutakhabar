@@ -55,7 +55,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://www.google-analytics.com https://analytics.google.com",
+              "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://api.open-meteo.com",
               "frame-src 'none'",
               "object-src 'none'",
               "base-uri 'self'",
