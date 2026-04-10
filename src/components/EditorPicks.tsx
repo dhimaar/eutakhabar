@@ -19,7 +19,7 @@ export default function EditorPicks({ picks, lang }: Props) {
               rel="noopener noreferrer"
               className="headline-link group inline-block"
             >
-              <span className="group-hover:text-[#DC143C] transition-colors leading-snug text-base sm:text-lg text-[#e0e0e0]">
+              <span className={`group-hover:text-[#DC143C] transition-colors leading-snug text-base sm:text-lg text-[#e0e0e0]`}>
                 {lang === "en" ? p.en : p.ne || p.en}
               </span>
             </a>

@@ -41,10 +41,10 @@ export default function HeadlineLink({ headline, lang, index }: HeadlineLinkProp
         onClick={() => trackHeadlineClick(headline.id, index, headline.category, headline.style)}
         className="headline-link group inline-block"
       >
-        <span className={`group-hover:text-[#DC143C] transition-colors leading-snug ${
+        <span className={`group-hover:text-[#DC143C] transition-colors leading-snug text-base sm:text-lg ${
           isMajor
-            ? "text-xl sm:text-2xl font-bold text-white"
-            : "text-base sm:text-lg text-[#e0e0e0]"
+            ? "font-bold text-white"
+            : "text-[#e0e0e0]"
         }`}>
           {headline.text[lang]}
         </span>

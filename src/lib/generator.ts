@@ -48,13 +48,30 @@ CRITICAL RULES — ACCURACY FIRST:
 1. **FAITHFULLY represent the actual news.** Read each title and summary carefully. The headline MUST match the real content and sentiment of the story. Do NOT invent claims, exaggerate beyond what the story says, or misrepresent events. If it's a positive story, the headline should be positive. If it's tragic, it should be serious.
 2. Many source titles are in Nepali (Devanagari). You MUST correctly understand the Nepali text before rewriting. Do NOT guess or mistranslate — if the Nepali title says "प्रधानमन्त्रीले विकास योजना सार्वजनिक गरे" that means "PM released development plan", NOT "PM EXPOSED" or similar.
 3. The English ("en") headline should be a faithful, punchy English version of the actual story.
-4. The Nepali ("ne") headline should be a faithful, punchy Nepali version — written ENTIRELY in Devanagari script. No English words, no Roman letters. Translate ALL words into proper Nepali.
+4. The Nepali ("ne") headline MUST sound like a natural Nepali newspaper headline — not a word-for-word translation from English. Write it as a native Nepali editor would.
+   - Written ENTIRELY in Devanagari script. No English words, no Roman letters, no mixed script.
+   - Use natural Nepali sentence structure (SOV order, not English SVO). For example:
+     - WRONG (English calque): "सरकार लाउँछ प्रतिबन्ध क्रिप्टोमा" (transliterated English word order)
+     - RIGHT (natural Nepali): "सरकारले क्रिप्टोमा प्रतिबन्ध लगायो"
+   - Use proper Nepali postpositions (ले, मा, को, लाई, बाट, सँग) correctly.
+   - Use idiomatic Nepali phrasing. Example: "India STUNS Nepal" → "भारतले नेपाललाई चकित पार्‍यो" (not "भारत स्टन्स नेपाल").
+   - WRITE IN NEPALI, NOT HINDI. These are different languages despite sharing Devanagari script. Key differences:
+     - Use Nepali verbs: "गर्‍यो/गर्‍यो" NOT Hindi "किया", "भयो" NOT "हुआ", "छ" NOT "है", "गर्छ" NOT "करता है"
+     - Use Nepali postpositions: "ले" NOT "ने", "मा" NOT "में", "बाट" NOT "से", "लाई" NOT "को" (when meaning "to someone")
+     - Use Nepali vocabulary: "अहिले" NOT "अभी", "कसरी" NOT "कैसे", "किन" NOT "क्यों", "गरेको" NOT "किया हुआ"
+     - Use Nepali plural markers and honorifics: "हरू" NOT "लोग", "हुनुहुन्छ" for respect
+     - If you're not sure whether a word is Nepali or Hindi, use the version that would appear in Kantipur or Gorkhapatra newspapers.
+   - NEVER leave English words untranslated. Common translations:
+     - "Budget" → "बजेट", "Parliament" → "संसद", "Election" → "निर्वाचन"
+     - "Government" → "सरकार", "Corruption" → "भ्रष्टाचार", "Protest" → "विरोध"
+     - "Breaking" → "ताजा", "Exclusive" → "विशेष", "Report" → "प्रतिवेदन"
 4a. **PROPER NOUNS** — names of people, places, parties, and organizations — must be TRANSLITERATED to Devanagari phonetically, NEVER literally translated. Examples:
    - "Rabi Lamichhane" → "रवि लामिछाने" (NOT a literal word translation)
    - "Sher Bahadur Deuba" → "शेरबहादुर देउवा"
    - "KP Sharma Oli" → "केपी शर्मा ओली"
    - "Nepal Swatantra Party" → "नेपाल स्वतन्त्र पार्टी"
    - "Kathmandu" → "काठमाडौं", "Pokhara" → "पोखरा"
+   - "NEPSE" → "नेप्से", "FIFA" → "फिफा", "ICC" → "आईसीसी"
    If unsure whether a token is a name, transliterate it. Translating a person's name into Nepali words is a serious factual error.
 4b. **OPINION PIECES** — items marked "TYPE: OPINION" are columns/editorials/blogs, NOT news reporting. Their headlines MUST be framed as opinion, not fact:
    - English headline MUST start with "OPINION: " (e.g. "OPINION: Why Nepal MUST regulate crypto now")
@@ -307,8 +324,9 @@ RULES:
 2. Punchy Drudge style. Under 100 characters. ALL CAPS on 1-2 dramatic key words.
 3. Bilingual: provide both "en" (English, Latin alphabet ONLY — NO Devanagari, NO Nepali words) and "ne" (Nepali, ENTIRELY in Devanagari script — NO Latin letters).
 4. NEVER swap the languages. The "en" field must be English. The "ne" field must be Devanagari Nepali.
-5. Proper nouns (names of people, places, parties) MUST be transliterated to Devanagari phonetically in the "ne" field — never literally translated.
-6. Lead with the strongest fact or revelation buried in the body — that's why we're reading the body.
+5. The "ne" headline MUST read like a natural Nepali newspaper headline — proper SOV word order, correct postpositions (ले, मा, को, लाई), idiomatic phrasing. NOT a word-for-word English translation.
+6. Proper nouns (names of people, places, parties) MUST be transliterated to Devanagari phonetically in the "ne" field — never literally translated.
+7. Lead with the strongest fact or revelation buried in the body — that's why we're reading the body.
 7. You MUST echo back the EXACT "id" string we provide for each item. Do not invent IDs.
 
 Return ONLY a JSON array (no markdown):
