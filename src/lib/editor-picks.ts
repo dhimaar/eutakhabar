@@ -6,6 +6,7 @@ export interface EditorPick {
   ne: string;
   url: string;
   label?: string;
+  imageUrl?: string;
 }
 
 export function loadEditorPicks(): EditorPick[] {
